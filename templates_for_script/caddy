@@ -13,19 +13,19 @@
   auto_https disable_redirects
 }
 https://$VLESS_DOMAIN {
-  root * /srv
-  basic_auth * {
-    xray_user $CADDY_BASIC_AUTH
-  }
-  file_server browse
-  log {
+  $CADDY_REVERSE
+   log {
     output file /var/lib/caddy/access.log {
       roll_size 10mb
       roll_keep 5
   }
 }
 }
-http://$VLESS_DOMAIN {
+https://$IP_CADDY {
+  tls internal
+  redir https://$VLESS_DOMAIN{uri} permanent
+}
+:80 {
   bind 0.0.0.0
-  redir https://{host}{uri} permanent
+  redir https://$VLESS_DOMAIN{uri} permanent
 }
