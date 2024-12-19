@@ -122,8 +122,7 @@ clear_xray_setup() {
   file_server browse"
 } 
 
-if [[ "$marzban_input" =~ ^([yY][eE][sS]|[yY])$ ]]
-then
+if [[ "$marzban_input" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     marzbna_install_setup()
 else
     clear_xray_setup()
@@ -166,8 +165,7 @@ netfilter-persistent save
 # Print user data
 echo "New user for ssh: $SSH_USER, password for user: $SSH_USER_PASS. New port for SSH: $SSH_PORT. New password for root user: $ROOT_USER_PASS"
 
-if [[ "$marzban_input" =~ ^([yY][eE][sS]|[yY])$ ]]
-then
+if [[ "$marzban_input" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     end_marzban()
 else
     end_clean_xray()
