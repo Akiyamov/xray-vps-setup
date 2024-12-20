@@ -95,7 +95,7 @@ export IMAGES_CADDY=("IL1.png", "IL2.png", "IL3.png", "SW1.png", "SW2.png", "SW3
 export IMAGE_CADDY=$(printf "%s\n" "${expressions[@]}" | shuf -n1)
 
 # Install marzban
-marzbna_install_setup() {
+marzban_install_setup() {
   export MARZBAN_PATH=$(openssl rand -hex 8)
   export MARZBAN_SUB_PATH=$(openssl rand -hex 8)
   mkdir -p /opt
@@ -122,11 +122,10 @@ clear_xray_setup() {
   file_server browse"
 } 
 
-if [[ "$marzban_input" =~ [yY]* ]]; then
-    marzbna_install_setup()
-else
-    clear_xray_setup()
-fi
+case $marzban_input in
+  [yY]* ) marzban_install_setup();;
+  [nN]* ) clear_xray_setup();;
+esac
 
 # Setup config for Caddy and XRay
 wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy | envsubst > /etc/caddy/Caddyfile
@@ -165,11 +164,10 @@ netfilter-persistent save
 # Print user data
 echo "New user for ssh: $SSH_USER, password for user: $SSH_USER_PASS. New port for SSH: $SSH_PORT. New password for root user: $ROOT_USER_PASS"
 
-if [[ "$marzban_input" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-    end_marzban()
-else
-    end_clean_xray()
-fi
+case $marzban_input in
+  [yY]* ) end_marzban();;
+  [nN]* ) end_clean_xray();;
+esac
 
 end_marzban() {
   systemctl enable --now marzban
