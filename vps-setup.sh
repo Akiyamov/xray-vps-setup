@@ -122,10 +122,11 @@ clear_xray_setup() {
   file_server browse"
 } 
 
-case $marzban_input in
-  [yY]* ) marzban_install_setup();;
-  [nN]* ) clear_xray_setup();;
-esac
+if [[ "${marzban_input,,}" == "y" ]]; then
+  marzban_install_setup()
+else
+  clear_xray_setup()
+fi
 
 # Setup config for Caddy and XRay
 wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy | envsubst > /etc/caddy/Caddyfile
@@ -164,10 +165,11 @@ netfilter-persistent save
 # Print user data
 echo "New user for ssh: $SSH_USER, password for user: $SSH_USER_PASS. New port for SSH: $SSH_PORT. New password for root user: $ROOT_USER_PASS"
 
-case $marzban_input in
-  [yY]* ) end_marzban();;
-  [nN]* ) end_clean_xray();;
-esac
+if [[ "${marzban_input,,}" == "y" ]]; then
+  end_marzban()
+else
+  end_clean_xray()
+fi
 
 end_marzban() {
   systemctl enable --now marzban
