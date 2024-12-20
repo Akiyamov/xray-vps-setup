@@ -122,7 +122,7 @@ clear_xray_setup() {
   file_server browse"
 } 
 
-if [[ "$marzban_input" =~ ^([yY])$ ]]; then
+if [[ "$marzban_input" =~ [yY]* ]]; then
     marzbna_install_setup()
 else
     clear_xray_setup()
