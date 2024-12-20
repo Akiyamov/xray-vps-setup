@@ -21,7 +21,7 @@ https://$VLESS_DOMAIN {
   }
 }
 }
-https://$IP_CADDY {
+http://$IP_CADDY {
   tls internal
   redir https://$VLESS_DOMAIN{uri} permanent
 }
