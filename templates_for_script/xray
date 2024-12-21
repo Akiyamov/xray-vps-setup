@@ -4,6 +4,7 @@
   },
   "inbounds": [
     {
+      "tag": "VLESS TCP VISION REALITY",
       "listen": "0.0.0.0",
       "port": 443,
       "protocol": "vless",

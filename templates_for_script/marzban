@@ -1,5 +1,5 @@
 SUDO_USERNAME = "xray_admin"
-SUDO_PASSWORD = "$SSH_USER_PASS"
+SUDO_PASSWORD = "$MARZBAN_PASS"
 UVICORN_UDS = "/var/lib/marzban/marzban.socket"
 DASHBOARD_PATH = "/$MARZBAN_PATH/"
 XRAY_JSON = "xray_config.json"

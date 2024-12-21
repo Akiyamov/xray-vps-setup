@@ -82,6 +82,7 @@ systemctl stop xray
 # Generate values for XRay
 export SSH_USER="xray_user"
 export SSH_USER_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13; echo)
+export MARZBAN_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13; echo)
 export ROOT_USER_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13; echo)
 export SSH_PORT=${input_ssh_port:-22}
 export IP_CADDY=$(hostname -I | cut -d' ' -f1)
@@ -95,61 +96,64 @@ export IMAGES_CADDY=("IL1.png", "IL2.png", "IL3.png", "SW1.png", "SW2.png", "SW3
 export IMAGE_CADDY=$(printf "%s\n" "${expressions[@]}" | shuf -n1)
 
 # Install marzban
-marzban_install_setup() {
-  export MARZBAN_PATH=$(openssl rand -hex 8)
-  export MARZBAN_SUB_PATH=$(openssl rand -hex 8)
-  mkdir -p /opt
-  cd /opt
-  git clone https://github.com/Gozargah/Marzban.git
-  cd Marzban
-  wget -qO- https://bootstrap.pypa.io/get-pip.py | python3 -
-  python3 -m pip install -r requirements.txt
-  alembic upgrade head
-  ln -s $(pwd)/marzban-cli.py /usr/bin/marzban-cli
-  chmod +x /usr/bin/marzban-cli
-  marzban-cli completion install
-  wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/marzban | envsubst > ./.env
-  export CADDY_REVERSE="reverse_proxy unix//var/lib/marzban/marzban.socket"
-  XRAY_CFG="/opt/Marzban/xray_config.json"
-  /opt/Marzban/install_service.sh
+xray_setup() {
+  if [[ "${marzban_input,,}" == "y" ]]; then
+    export MARZBAN_PATH=$(openssl rand -hex 8)
+    export MARZBAN_SUB_PATH=$(openssl rand -hex 8)
+    mkdir -p /opt
+    cd /opt
+    if [ -d /opt/Marzban ]; then
+      echo "Path already exists. Seems like you have already installed marzban. Not changing"
+    else 
+      git clone https://github.com/Gozargah/Marzban.git
+      cd Marzban
+      wget -qO- https://bootstrap.pypa.io/get-pip.py | python3 -
+      python3 -m pip install -r requirements.txt
+      alembic upgrade head
+      ln -s $(pwd)/marzban-cli.py /usr/bin/marzban-cli
+      chmod +x /usr/bin/marzban-cli
+      marzban-cli completion install
+      wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/marzban | envsubst > ./.env
+      export CADDY_REVERSE="reverse_proxy unix//var/lib/marzban/marzban.socket"
+      XRAY_CFG="/opt/Marzban/xray_config.json"
+      /opt/Marzban/install_service.sh
+    fi
+  else
+    export CADDY_REVERSE="root * /srv
+    basic_auth * {
+      xray_user $CADDY_BASIC_AUTH
+    }
+    file_server browse"
+  fi
 }
 
-clear_xray_setup() {
-  export CADDY_REVERSE="root * /srv
-  basic_auth * {
-    xray_user $CADDY_BASIC_AUTH
-  }
-  file_server browse"
-} 
-
-if [[ "${marzban_input,,}" == "y" ]]; then
-  marzban_install_setup()
-else
-  clear_xray_setup()
-fi
+xray_setup
 
 # Setup config for Caddy and XRay
-wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy | envsubst > /etc/caddy/Caddyfile
-wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray | envsubst > $XRAY_CFG
+wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > /etc/caddy/Caddyfile
+wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > $XRAY_CFG
 
-# Create user and add to sudoers
-useradd $SSH_USER
-usermod -aG sudo $SSH_USER
-echo $SSH_USER:$SSH_USER_PASS | chpasswd
+add_user() {
+  if id "$1" >/dev/null 2>&1; then
+    echo 'User already exists, not changing anything'
+  else
+    useradd $SSH_USER
+    usermod -aG sudo $SSH_USER
+    echo $SSH_USER:$SSH_USER_PASS | chpasswd
+    echo root:$ROOT_USER_PASS | chpasswd
+    mkdir -p /home/$SSH_USER/.ssh
+    touch /home/$SSH_USER/.ssh/authorized_keys
+    echo $input_ssh_pbk >> /home/$SSH_USER/.ssh/authorized_keys
+    chmod 700 /home/$SSH_USER/.ssh/
+    chmod 600 /home/$SSH_USER/.ssh/authorized_keys
+    chown $SSH_USER:$SSH_USER -R /home/$SSH_USER
+  fi
+}
 
-# Set new password for root user
-echo root:$ROOT_USER_PASS | chpasswd
-
-# Add ssh pbk to authorized_keys
-mkdir -p /home/$SSH_USER/.ssh
-touch /home/$SSH_USER/.ssh/authorized_keys
-echo $input_ssh_pbk >> /home/$SSH_USER/.ssh/authorized_keys
-chmod 700 /home/$SSH_USER/.ssh/
-chmod 600 /home/$SSH_USER/.ssh/authorized_keys
-chown $SSH_USER:$SSH_USER -R /home/$SSH_USER
+add_user
 
 # Set SSH config 
-wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/ssh_template | envsubst > /etc/ssh/sshd_config
+wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/ssh_template" | envsubst > /etc/ssh/sshd_config
 systemctl restart ssh
 
 # Configure iptables
@@ -165,30 +169,25 @@ netfilter-persistent save
 # Print user data
 echo "New user for ssh: $SSH_USER, password for user: $SSH_USER_PASS. New port for SSH: $SSH_PORT. New password for root user: $ROOT_USER_PASS"
 
-if [[ "${marzban_input,,}" == "y" ]]; then
-  end_marzban()
-else
-  end_clean_xray()
-fi
-
-end_marzban() {
-  systemctl enable --now marzban
-  echo "Marzban location: https://$VLESS_DOMAIN/$MARZBAN_PATH. Marzban user: xray_admin, password is same as SSH user"
+end_script() {
+  if [[ "${marzban_input,,}" == "y" ]]; then
+    systemctl enable --now marzban
+    echo "Marzban location: https://$VLESS_DOMAIN/$MARZBAN_PATH. Marzban user: xray_admin, password: $MARZBAN_PASS"
+  else
+    systemctl start xray
+    systemctl restart caddy
+    echo "Clipboard string format"
+    echo "vless://$XRAY_UUID@$VLESS_DOMAIN:443?type=tcp&security=reality&pbk=$XRAY_PBK&fp=chrome&sni=$VLESS_DOMAIN&sid=$XRAY_SID&spx=%2F&flow=xtls-rprx-vision" | envsubst
+    echo "XRay outbound config"
+    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray_outbound | envsubst 
+    echo "Sing-box outbound config"
+    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/sing_box_outbound | envsubst 
+    echo "Plain data"
+    echo "PBK: $XRAY_PBK, SID: $XRAY_SID, UUID: $XRAY_UUID"
+  fi
 }
 
-end_clean_xray() {
-  systemctl start xray
-  systemctl restart caddy
-  echo "Clipboard string format"
-  echo "vless://$XRAY_UUID@$VLESS_DOMAIN:443?type=tcp&security=reality&pbk=$XRAY_PBK&fp=chrome&sni=$VLESS_DOMAIN&sid=$XRAY_SID&spx=%2F&flow=xtls-rprx-vision" | envsubst
-  echo "XRay outbound config"
-  wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray_outbound | envsubst 
-  echo "Sing-box outbound config"
-  wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/sing_box_outbound | envsubst 
-  echo "Plain data"
-  echo "PBK: $XRAY_PBK, SID: $XRAY_SID, UUID: $XRAY_UUID"
-}
-# Print outbound and clipboard string
+end_script
 
 # WARP Install function
 # warp_install() {
