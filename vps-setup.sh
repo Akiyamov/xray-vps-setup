@@ -114,7 +114,7 @@ xray_setup() {
       chmod +x /usr/bin/marzban-cli
       marzban-cli completion install
       wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/marzban | envsubst > ./.env
-      export CADDY_REVERSE="reverse_proxy unix//var/lib/marzban/marzban.socket"
+      export CADDY_REVERSE="reverse_proxy http://127.0.0.1:8000"
       XRAY_CFG="/opt/Marzban/xray_config.json"
       /opt/Marzban/install_service.sh
     fi
