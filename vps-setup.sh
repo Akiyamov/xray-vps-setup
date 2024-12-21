@@ -134,7 +134,7 @@ wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/te
 wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > $XRAY_CFG
 
 add_user() {
-  if id "$1" >/dev/null 2>&1; then
+  if id "xray_user" >/dev/null 2>&1; then
     echo 'User already exists, not changing anything'
   else
     useradd $SSH_USER
