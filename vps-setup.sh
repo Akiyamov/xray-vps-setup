@@ -11,10 +11,9 @@ if [ "$EUID" -ne 0 ]
   exit
 fi
 
-# Install idn and yq
-add-apt-repository -y ppa:rmescandon/yq
+# Install idn 
 apt-get update
-apt-get install idn yq -y
+apt-get install idn -y
 
 # Read domain input
 read -ep "Enter your domain:"$'\n' input_domain
@@ -104,25 +103,25 @@ xray_setup() {
     mkdir -p /opt/xray-vps-setup
     cd /opt/xray-vps-setup
     wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/compose | envsubst > ./docker-compose.yml
-    yq -i \
+    docker run --rm -v ${PWD}:/workdir mikefarah/yq yq -i \
     '.services.marzban.image = "gozargah/marzban:v0.7.0" |
      .services.marzban.restart = "always" |
      .services.marzban.env_file = "./marzban/.env" |
      .services.marzban.network_mode = "host" | 
      .services.marzban.volumes[0] = "/var/lib/marzban:/var/lib/marzban" | 
      .services.marzban.volumes[1] = "./marzban/xray_config.json:/code/xray_config.json" | 
-     .services.caddy.volumes[3] = "/var/lib/marzban:/var/lib/marzban"' docker-compose.yml
+     .services.caddy.volumes[3] = "/var/lib/marzban:/var/lib/marzban"' /workdir/docker-compose.yml
     mkdir marzban caddy
     wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/marzban | envsubst > ./marzban/.env
     export CADDY_REVERSE="reverse_proxy http://127.0.0.1:8000"
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > ./caddy/Caddyfile
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > ./marzban/xray_config.json
   else
-    yq -i \
+    docker run --rm -v ${PWD}:/workdir mikefarah/yq yq -i \
     '.services.xray.image = "ghcr.io/xtls/xray-core:sha-db934f0" | 
     .services.xray.restart = "always" | 
     .services.xray.network_mode = "host" | 
-    .services.xray.volumes[0] = "./xray:/etc/xray"' docker-compose.yml
+    .services.xray.volumes[0] = "./xray:/etc/xray"' /workdir/docker-compose.yml
     export CADDY_REVERSE="root * /srv
     basic_auth * {
       xray_user $CADDY_BASIC_AUTH
