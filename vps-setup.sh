@@ -64,6 +64,14 @@ else
     echo "Enabled BBR"
 fi
 
+docker_install() {
+  bash <(wget -qO- https://get.docker.com) @ -o get-docker.sh
+}
+
+if ! command -v docker 2>&1 >/dev/null; then
+    docker_install
+fi
+
 # Generate values for XRay
 export SSH_USER=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8; echo)
 export SSH_USER_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13; echo)
@@ -83,14 +91,6 @@ export XRAY_UUID=$(docker run --rm ghcr.io/xtls/xray-core uuid)
 export XRAY_CFG="/usr/local/etc/xray/config.json"
 export IMAGES_CADDY=("IL1.png", "IL2.png", "IL3.png", "SW1.png", "SW2.png", "SW3.png")
 export IMAGE_CADDY=$(printf "%s\n" "${expressions[@]}" | shuf -n1)
-
-docker_install() {
-  bash <(wget -qO- https://get.docker.com) @ -o get-docker.sh
-}
-
-if ! command -v docker 2>&1 >/dev/null; then
-    docker_install
-fi
 
 # Install marzban
 xray_setup() {
