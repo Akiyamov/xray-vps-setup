@@ -12,6 +12,7 @@ if [ "$EUID" -ne 0 ]
 fi
 
 # Install idn and yq
+add-apt-repository ppa:rmescandon/yq
 apt-get update
 apt-get install idn yq -y
 
