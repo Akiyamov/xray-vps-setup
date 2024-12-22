@@ -87,6 +87,14 @@ export XRAY_CFG="/usr/local/etc/xray/config.json"
 export IMAGES_CADDY=("IL1.png", "IL2.png", "IL3.png", "SW1.png", "SW2.png", "SW3.png")
 export IMAGE_CADDY=$(printf "%s\n" "${expressions[@]}" | shuf -n1)
 
+docker_install() {
+  bash <(wget -qO- https://get.docker.com) @ -o get-docker.sh
+}
+
+if ! command -v docker 2>&1 >/dev/null; then
+    docker_install
+fi
+
 # Install marzban
 xray_setup() {
   if [[ "${marzban_input,,}" == "y" ]]; then
@@ -109,7 +117,6 @@ xray_setup() {
     export CADDY_REVERSE="reverse_proxy http://127.0.0.1:8000"
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > ./caddy/Caddyfile
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > ./marzban/xray_config.json
-    fi
   else
     yq -i \
     '.services.xray.image = "ghcr.io/xtls/xray-core:sha-db934f0" | 
@@ -200,9 +207,10 @@ end_script
 # warp_install() {
 #   curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
 #   echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
-#   apt-get update && apt-get install cloudflare-warp -y
+#   apt-get update 
+#   apt-get install cloudflare-warp -y
 #   
-#   warp-cli registration new
+#   echo "y" | warp-cli registration new
 #   warp-cli mode proxy
 #   warp-cli proxy port 40000
 #   warp-cli connect
