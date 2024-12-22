@@ -183,11 +183,11 @@ echo "New user for ssh: $SSH_USER, password for user: $SSH_USER_PASS. New port f
 end_script() {
   if [[ "${marzban_input,,}" == "y" ]]; then
     docker run -v /opt/xray-vps-setup/caddy/Caddyfile:/workdir/Caddyfile --rm caddy caddy fmt --overwrite /workdir/Caddyfile
-    docker compose -f /opt/xray-vps-setup/docker-compose.yml up 
+    docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
     echo "Marzban location: https://$VLESS_DOMAIN/$MARZBAN_PATH. Marzban user: xray_admin, password: $MARZBAN_PASS"
   else
     docker run -v /opt/xray-vps-setup/caddy/Caddyfile:/workdir/Caddyfile --rm caddy caddy fmt --overwrite /workdir/Caddyfile
-    docker compose -f /opt/xray-vps-setup/docker-compose.yml up 
+    docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
     echo "Clipboard string format"
     echo "vless://$XRAY_UUID@$VLESS_DOMAIN:443?type=tcp&security=reality&pbk=$XRAY_PBK&fp=chrome&sni=$VLESS_DOMAIN&sid=$XRAY_SID&spx=%2F&flow=xtls-rprx-vision" | envsubst
     echo "XRay outbound config"
