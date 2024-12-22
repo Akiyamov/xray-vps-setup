@@ -13,11 +13,15 @@
   auto_https disable_redirects
 }
 https://{{ vless.domain }} {
+{ % if "setup_variant" == "marzban" % }
+  reverse_proxy http://127.0.0.1:8000
+{ % else % }
   root * /srv
   basic_auth * {
     xray_user {{ caddy_basic_auth.stdout }}
   }
   file_server browse
+{ % endif % }
   log {
     output file /var/lib/caddy/access.log {
       roll_size 10mb

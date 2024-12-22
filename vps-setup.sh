@@ -11,9 +11,9 @@ if [ "$EUID" -ne 0 ]
   exit
 fi
 
-# Install idn
+# Install idn and yq
 apt-get update
-apt-get install idn -y
+apt-get install idn yq -y
 
 # Read domain input
 read -ep "Enter your domain:"$'\n' input_domain
@@ -32,24 +32,29 @@ fi
 
 read -ep "Do you want to install marzban? [y/N] " marzban_input
 
-# Read SSH port
-read -ep "Enter SSH port [default 22]:"$'\n' input_ssh_port
+read -ep "Do you want to configure SSH? [y/N] " configure_ssh_input
 
-while [ "$input_ssh_port" -eq "80"] || [ "$input_ssh_port" -eq "443" ]; do
-  read -ep "No, ssh can't use $input_ssh_port as port, write again:"$'\n' input_ssh_port
-done
+if [[ ${configure_ssh_input,,} == "y" ]]; then
+  # Read SSH port
+  read -ep "Enter SSH port. Default 22, can't use ports: 80, 443 and 4123:"$'\n' input_ssh_port
 
-# Read SSH Pubkey
-read -ep "Enter SSH public key:"$'\n' input_ssh_pbk
+  while [ "$input_ssh_port" -eq "80"] || [ "$input_ssh_port" -eq "443" ] || [ "$input_ssh_port" -eq "4123" ]; do
+    read -ep "No, ssh can't use $input_ssh_port as port, write again:"$'\n' input_ssh_port
+  done
+  # Read SSH Pubkey
+  read -ep "Enter SSH public key:"$'\n' input_ssh_pbk
 
-echo "$input_ssh_pbk" > ./test_pbk
-ssh-keygen -l -f ./test_pbk
-PBK_STATUS=$(echo $?)
-if [ "$PBK_STATUS" -eq 255 ]; then
-  echo "Can't verify publick key. Try again and be sure to include 'ssh-rsa' or 'ssh-ed25519' and 'user@pcname' at the end of file"
-  exit
+  echo "$input_ssh_pbk" > ./test_pbk
+  ssh-keygen -l -f ./test_pbk
+  PBK_STATUS=$(echo $?)
+  if [ "$PBK_STATUS" -eq 255 ]; then
+    echo "Can't verify publick key. Try again and be sure to include 'ssh-rsa' or 'ssh-ed25519' and 'user@pcname' at the end of file"
+    exit
+  fi
+  rm ./test_pbk
 fi
-rm ./test_pbk
+
+read -ep "Do you want to create special user to login and forbid root login? [y/N] " create_new_user
 
 # Check congestion protocol
 if sysctl net.ipv4.tcp_congestion_control | grep bbr; then
@@ -61,30 +66,16 @@ else
     echo "Enabled BBR"
 fi
 
-# Set vars for deb
-debconf-set-selections <<EOF
-iptables-persistent iptables-persistent/autosave_v4 boolean true
-iptables-persistent iptables-persistent/autosave_v6 boolean true
-EOF
-
-# Install Caddy, jq and sudo
-apt-get update
-apt-get install -y debian-keyring debian-archive-keyring apt-transport-https curl iptables-persistent
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --yes --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
-apt-get update
-apt-get install -y caddy jq sudo
-
-# Install XRay
-bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
-systemctl stop xray
-
 # Generate values for XRay
-export SSH_USER="xray_user"
+export SSH_USER=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8; echo)
 export SSH_USER_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13; echo)
-export MARZBAN_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13; echo)
 export ROOT_USER_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13; echo)
 export SSH_PORT=${input_ssh_port:-22}
+if [[ "${create_new_user,,}" -eq "y" ]]; then
+  export ROOT_LOGIN="no"
+else 
+  export ROOT_LOGIN="yes"
+fi
 export IP_CADDY=$(hostname -I | cut -d' ' -f1)
 export CADDY_BASIC_AUTH=$(echo $SSH_USER_PASS | caddy hash-password)
 export XRAY_PIK=$(xray x25519 | head -n1 | cut -d' ' -f 3)
@@ -98,40 +89,44 @@ export IMAGE_CADDY=$(printf "%s\n" "${expressions[@]}" | shuf -n1)
 # Install marzban
 xray_setup() {
   if [[ "${marzban_input,,}" == "y" ]]; then
+    export MARZBAN_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13; echo)
     export MARZBAN_PATH=$(openssl rand -hex 8)
     export MARZBAN_SUB_PATH=$(openssl rand -hex 8)
-    mkdir -p /opt
-    cd /opt
-    if [ -d /opt/Marzban ]; then
-      echo "Path already exists. Seems like you have already installed marzban. Not changing"
-    else 
-      git clone https://github.com/Gozargah/Marzban.git
-      cd Marzban
-      wget -qO- https://bootstrap.pypa.io/get-pip.py | python3 -
-      python3 -m pip install -r requirements.txt
-      alembic upgrade head
-      ln -s $(pwd)/marzban-cli.py /usr/bin/marzban-cli
-      chmod +x /usr/bin/marzban-cli
-      marzban-cli completion install
-      wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/marzban | envsubst > ./.env
-      export CADDY_REVERSE="reverse_proxy http://127.0.0.1:8000"
-      XRAY_CFG="/opt/Marzban/xray_config.json"
-      /opt/Marzban/install_service.sh
+    mkdir -p /opt/xray-vps-setup
+    cd /opt/xray-vps-setup
+    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/compose | envsubst > ./docker-compose.yml
+    yq -i \
+    '.services.marzban.image = "gozargah/marzban:v0.7.0" |
+     .services.marzban.restart = "always" |
+     .services.marzban.env_file = "./marzban/.env" |
+     .services.marzban.network_mode = "host" | 
+     .services.marzban.volumes[0] = "/var/lib/marzban:/var/lib/marzban" | 
+     .services.marzban.volumes[1] = "./marzban/xray_config.json:/code/xray_config.json" | 
+     .services.caddy.volumes[3] = "/var/lib/marzban:/var/lib/marzban"' docker-compose.yml
+    mkdir marzban caddy
+    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/marzban | envsubst > ./marzban/.env
+    export CADDY_REVERSE="reverse_proxy http://127.0.0.1:8000"
+    wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > ./caddy/Caddyfile
+    wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > ./marzban/xray_config.json
     fi
   else
+    yq -i \
+    '.services.xray.image = "ghcr.io/xtls/xray-core:sha-db934f0" | 
+    .services.xray.restart = "always" | 
+    .services.xray.network_mode = "host" | 
+    .services.xray.volumes[0] = "./xray:/etc/xray"' docker-compose.yml
     export CADDY_REVERSE="root * /srv
     basic_auth * {
       xray_user $CADDY_BASIC_AUTH
     }
     file_server browse"
+    mkdir xray caddy
+    wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > ./xray/config.json
+    wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > ./caddy/Caddyfile
   fi
 }
 
 xray_setup
-
-# Setup config for Caddy and XRay
-wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > /etc/caddy/Caddyfile
-wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > $XRAY_CFG
 
 add_user() {
   if id "xray_user" >/dev/null 2>&1; then
@@ -147,24 +142,35 @@ add_user() {
     chmod 700 /home/$SSH_USER/.ssh/
     chmod 600 /home/$SSH_USER/.ssh/authorized_keys
     chown $SSH_USER:$SSH_USER -R /home/$SSH_USER
+    groupadd docker
+    usermod -aG docker $SSH_USER
   fi
 }
 
-add_user
+if [[ ${create_new_user,,} -eq "y" ]]; then
+  add_user
+fi
 
 # Set SSH config 
-wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/ssh_template" | envsubst > /etc/ssh/sshd_config
-systemctl restart ssh
+edti_sshd() {
+  wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/ssh_template" | envsubst > /etc/ssh/sshd_config
+  systemctl restart ssh
+}
 
 # Configure iptables
-iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
-iptables -A INPUT -p tcp -m state --state NEW -m tcp --dport $SSH_PORT -j ACCEPT
-iptables -A INPUT -p tcp -m tcp --dport 80 -j ACCEPT
-iptables -A INPUT -p tcp -m tcp --dport 443 -j ACCEPT
-iptables -A INPUT -i lo -j ACCEPT
-iptables -A OUTPUT -o lo -j ACCEPT
-iptables -P INPUT DROP
-netfilter-persistent save
+edit_iptables() {
+  apt-get install iptables-persistent netfilter-persistent -y
+  iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+  iptables -A INPUT -p tcp -m state --state NEW -m tcp --dport $SSH_PORT -j ACCEPT
+  iptables -A INPUT -p tcp -m tcp --dport 80 -j ACCEPT
+  iptables -A INPUT -p tcp -m tcp --dport 443 -j ACCEPT
+  iptables -A INPUT -i lo -j ACCEPT
+  iptables -A OUTPUT -o lo -j ACCEPT
+  iptables -P INPUT DROP
+  netfilter-persistent save
+}
+
+edit_iptables
 
 # Print user data
 echo "New user for ssh: $SSH_USER, password for user: $SSH_USER_PASS. New port for SSH: $SSH_PORT. New password for root user: $ROOT_USER_PASS"

@@ -1,0 +1,10 @@
+services:
+  caddy:
+    image: caddy:2.9
+    restart: always
+    network_mode: host
+    volumes:
+      - /var/lib/marzban:/var/lib/marzban
+      - ./caddy/data:/data
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./caddy/access.log:/var/lib/caddy/access.log
