@@ -77,11 +77,7 @@ export SSH_USER=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8; echo)
 export SSH_USER_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13; echo)
 export ROOT_USER_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13; echo)
 export SSH_PORT=${input_ssh_port:-22}
-if [[ "${create_new_user,,}" -eq "y" ]]; then
-  export ROOT_LOGIN="no"
-else 
-  export ROOT_LOGIN="yes"
-fi
+export ROOT_LOGIN="yes"
 export IP_CADDY=$(hostname -I | cut -d' ' -f1)
 export CADDY_BASIC_AUTH=$(docker run --rm caddy caddy hash-password --plaintext $SSH_USER_PASS)
 export XRAY_PIK=$(docker run --rm ghcr.io/xtls/xray-core x25519 | head -n1 | cut -d' ' -f 3)
