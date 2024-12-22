@@ -32,7 +32,7 @@ fi
 
 read -ep "Do you want to install marzban? [y/N] " marzban_input
 
-read -ep "Do you want to configure SSH? [y/N] " configure_ssh_input
+read -ep "Do you want to configure SSH by changing port, adding your public key and adding user for login? [y/N] " configure_ssh_input
 
 if [[ ${configure_ssh_input,,} == "y" ]]; then
   # Read SSH port
@@ -53,8 +53,6 @@ if [[ ${configure_ssh_input,,} == "y" ]]; then
   fi
   rm ./test_pbk
 fi
-
-read -ep "Do you want to create special user to login and forbid root login? [y/N] " create_new_user
 
 # Check congestion protocol
 if sysctl net.ipv4.tcp_congestion_control | grep bbr; then
@@ -103,25 +101,25 @@ xray_setup() {
     mkdir -p /opt/xray-vps-setup
     cd /opt/xray-vps-setup
     wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/compose | envsubst > ./docker-compose.yml
-    docker run --rm -v ${PWD}:/workdir mikefarah/yq yq -i \
+    docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
     '.services.marzban.image = "gozargah/marzban:v0.7.0" |
      .services.marzban.restart = "always" |
      .services.marzban.env_file = "./marzban/.env" |
      .services.marzban.network_mode = "host" | 
      .services.marzban.volumes[0] = "/var/lib/marzban:/var/lib/marzban" | 
      .services.marzban.volumes[1] = "./marzban/xray_config.json:/code/xray_config.json" | 
-     .services.caddy.volumes[3] = "/var/lib/marzban:/var/lib/marzban"' /workdir/docker-compose.yml
+     .services.caddy.volumes[3] = "/var/lib/marzban:/var/lib/marzban"' -i /workdir/docker-compose.yml
     mkdir marzban caddy
     wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/marzban | envsubst > ./marzban/.env
     export CADDY_REVERSE="reverse_proxy http://127.0.0.1:8000"
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > ./caddy/Caddyfile
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > ./marzban/xray_config.json
   else
-    docker run --rm -v ${PWD}:/workdir mikefarah/yq yq -i \
+    docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
     '.services.xray.image = "ghcr.io/xtls/xray-core:sha-db934f0" | 
     .services.xray.restart = "always" | 
     .services.xray.network_mode = "host" | 
-    .services.xray.volumes[0] = "./xray:/etc/xray"' /workdir/docker-compose.yml
+    .services.xray.volumes[0] = "./xray:/etc/xray"' -i /workdir/docker-compose.yml
     export CADDY_REVERSE="root * /srv
     basic_auth * {
       xray_user $CADDY_BASIC_AUTH
@@ -154,7 +152,7 @@ add_user() {
   fi
 }
 
-if [[ ${create_new_user,,} -eq "y" ]]; then
+if [[ ${configure_ssh_input,,} -eq "y" ]]; then
   add_user
 fi
 
