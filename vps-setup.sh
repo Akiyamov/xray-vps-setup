@@ -12,7 +12,7 @@ if [ "$EUID" -ne 0 ]
 fi
 
 # Install idn and yq
-add-apt-repository ppa:rmescandon/yq
+add-apt-repository -y ppa:rmescandon/yq
 apt-get update
 apt-get install idn yq -y
 
@@ -185,11 +185,10 @@ echo "New user for ssh: $SSH_USER, password for user: $SSH_USER_PASS. New port f
 
 end_script() {
   if [[ "${marzban_input,,}" == "y" ]]; then
-    systemctl enable --now marzban
+    docker compose up -f /opt/xray-vps-setup/docker-compose.yml
     echo "Marzban location: https://$VLESS_DOMAIN/$MARZBAN_PATH. Marzban user: xray_admin, password: $MARZBAN_PASS"
   else
-    systemctl start xray
-    systemctl restart caddy
+    docker compose up -f /opt/xray-vps-setup/docker-compose.yml
     echo "Clipboard string format"
     echo "vless://$XRAY_UUID@$VLESS_DOMAIN:443?type=tcp&security=reality&pbk=$XRAY_PBK&fp=chrome&sni=$VLESS_DOMAIN&sid=$XRAY_SID&spx=%2F&flow=xtls-rprx-vision" | envsubst
     echo "XRay outbound config"
