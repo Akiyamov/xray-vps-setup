@@ -13,12 +13,6 @@
 }
 https://$VLESS_DOMAIN {
   $CADDY_REVERSE
-   log {
-    output file /var/lib/caddy/access.log {
-      roll_size 10mb
-      roll_keep 5
-  }
-}
 }
 :4123 {
   tls internal {
