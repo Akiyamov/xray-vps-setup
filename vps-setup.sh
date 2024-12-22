@@ -78,11 +78,11 @@ else
   export ROOT_LOGIN="yes"
 fi
 export IP_CADDY=$(hostname -I | cut -d' ' -f1)
-export CADDY_BASIC_AUTH=$(echo $SSH_USER_PASS | caddy hash-password)
-export XRAY_PIK=$(xray x25519 | head -n1 | cut -d' ' -f 3)
-export XRAY_PBK=$(xray x25519 -i $XRAY_PIK | tail -1 | cut -d' ' -f 3)
+export CADDY_BASIC_AUTH=$(docker run --rm caddy caddy hash-password --plaintext $SSH_USER_PASS)
+export XRAY_PIK=$(docker run --rm ghcr.io/xtls/xray-core x25519 | head -n1 | cut -d' ' -f 3)
+export XRAY_PBK=$(docker run --rm ghcr.io/xtls/xray-core x25519 -i $XRAY_PIK | tail -1 | cut -d' ' -f 3)
 export XRAY_SID=$(openssl rand -hex 8)
-export XRAY_UUID=$(xray uuid)
+export XRAY_UUID=$(docker run --rm ghcr.io/xtls/xray-core uuid)
 export XRAY_CFG="/usr/local/etc/xray/config.json"
 export IMAGES_CADDY=("IL1.png", "IL2.png", "IL3.png", "SW1.png", "SW2.png", "SW3.png")
 export IMAGE_CADDY=$(printf "%s\n" "${expressions[@]}" | shuf -n1)
