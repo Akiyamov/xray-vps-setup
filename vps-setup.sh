@@ -115,6 +115,7 @@ xray_setup() {
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > ./caddy/Caddyfile
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > ./marzban/xray_config.json
   else
+    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/compose | envsubst > ./docker-compose.yml
     docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
     '.services.xray.image = "ghcr.io/xtls/xray-core:sha-db934f0" | 
     .services.xray.restart = "always" | 
