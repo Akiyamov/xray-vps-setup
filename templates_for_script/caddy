@@ -9,7 +9,7 @@
       tls
     }
   }
-  auto_https disable_certs
+  auto_https disable_redirects
 }
 https://$VLESS_DOMAIN {
   $CADDY_REVERSE

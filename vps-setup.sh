@@ -94,12 +94,12 @@ fi
 
 # Install marzban
 xray_setup() {
+  mkdir -p /opt/xray-vps-setup
+  cd /opt/xray-vps-setup
   if [[ "${marzban_input,,}" == "y" ]]; then
     export MARZBAN_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13; echo)
     export MARZBAN_PATH=$(openssl rand -hex 8)
     export MARZBAN_SUB_PATH=$(openssl rand -hex 8)
-    mkdir -p /opt/xray-vps-setup
-    cd /opt/xray-vps-setup
     wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/compose | envsubst > ./docker-compose.yml
     docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
     '.services.marzban.image = "gozargah/marzban:v0.7.0" |
