@@ -32,7 +32,7 @@ fi
 
 read -ep "Do you want to install marzban? [y/N] " marzban_input
 
-read -ep "Do you want to configure SSH by changing port, adding your public key and adding user for login? [y/N] " configure_ssh_input
+read -ep "Do you want to configure SSH by changing port and adding your public key? [y/N] " configure_ssh_input
 
 if [[ ${configure_ssh_input,,} == "y" ]]; then
   # Read SSH port
@@ -53,6 +53,8 @@ if [[ ${configure_ssh_input,,} == "y" ]]; then
   fi
   rm ./test_pbk
 fi
+
+read -ep "Do you want to install WARP and use it on russian websites? [y/N] " configure_warp_input
 
 # Check congestion protocol
 if sysctl net.ipv4.tcp_congestion_control | grep bbr; then
@@ -102,12 +104,12 @@ xray_setup() {
      .services.marzban.restart = "always" |
      .services.marzban.env_file = "./marzban/.env" |
      .services.marzban.network_mode = "host" | 
-     .services.marzban.volumes[0] = "/var/lib/marzban:/var/lib/marzban" | 
-     .services.marzban.volumes[1] = "./marzban/xray_config.json:/code/xray_config.json" | 
-     .services.caddy.volumes[3] = "/var/lib/marzban:/var/lib/marzban"' -i /workdir/docker-compose.yml
+     .services.marzban.volumes[0] = "./marzban_lib:/var/lib/marzban" | 
+     .services.marzban.volumes[1] = "./marzban/xray_config.json:/code/xray_config.json" |
+     .services.caddy.volumes[3] = "./marzban_lib:/run/marzban"' -i /workdir/docker-compose.yml
     mkdir marzban caddy
     wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/marzban | envsubst > ./marzban/.env
-    export CADDY_REVERSE="reverse_proxy http://127.0.0.1:8000"
+    export CADDY_REVERSE="reverse_proxy * unix//run/marzban/marzban.socket"
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > ./caddy/Caddyfile
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > ./marzban/xray_config.json
   else
@@ -130,36 +132,10 @@ xray_setup() {
 
 xray_setup
 
-add_user() {
-  if id "xray_user" >/dev/null 2>&1; then
-    echo 'User already exists, not changing anything'
-  else
-    useradd $SSH_USER
-    usermod -aG sudo $SSH_USER
-    echo $SSH_USER:$SSH_USER_PASS | chpasswd
-    echo root:$ROOT_USER_PASS | chpasswd
-    mkdir -p /home/$SSH_USER/.ssh
-    touch /home/$SSH_USER/.ssh/authorized_keys
-    echo $input_ssh_pbk >> /home/$SSH_USER/.ssh/authorized_keys
-    chmod 700 /home/$SSH_USER/.ssh/
-    chmod 600 /home/$SSH_USER/.ssh/authorized_keys
-    chown $SSH_USER:$SSH_USER -R /home/$SSH_USER
-    usermod -aG docker $SSH_USER
-  fi
-}
-
-if [[ ${configure_ssh_input,,} -eq "y" ]]; then
-  add_user
-fi
-
-# Set SSH config 
-edti_sshd() {
-  wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/ssh_template" | envsubst > /etc/ssh/sshd_config
-  systemctl restart ssh
-}
-
 # Configure iptables
 edit_iptables() {
+  iptables-persistent iptables-persistent/autosave_v4 boolean true
+  iptables-persistent iptables-persistent/autosave_v6 boolean true
   apt-get install iptables-persistent netfilter-persistent -y
   iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
   iptables -A INPUT -p tcp -m state --state NEW -m tcp --dport $SSH_PORT -j ACCEPT
@@ -198,15 +174,28 @@ end_script() {
 end_script
 
 # WARP Install function
-# warp_install() {
-#   curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
-#   echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
-#   apt-get update 
-#   apt-get install cloudflare-warp -y
-#   
-#   echo "y" | warp-cli registration new
-#   warp-cli mode proxy
-#   warp-cli proxy port 40000
-#   warp-cli connect
-# }
-# 
+warp_install() {
+  curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+  echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
+  apt-get update 
+  apt-get install cloudflare-warp -y
+  
+  echo "y" | warp-cli registration new
+  export WARP_RESULT=$(echo $?)
+  if [[ $WARP_RESULT != 0 ]]; then
+    echo "WARP got an error, not adding to config"
+  else
+    warp-cli mode proxy
+    warp-cli proxy port 40000
+    warp-cli connect
+    docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
+    '.outbounds[.outbounds | length ] |= . + 
+    {"tag": "warp", "protocl": "socks", "settings": 
+    {"servers": [{"address": "127.0.0.1", "port": "40000", "users": []}]}}' \
+    -i /workdir/marzban/xray_config.json
+    docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
+    '.routing.rules[.routing.rules | length ] |= . 
+    + {"outboundTag": "warp", "domain": ["geosite:ru"]}' \
+    -i /workdir/marzban/xray_config.json
+  fi
+}
