@@ -21,7 +21,7 @@ read -ep "Enter your domain:"$'\n' input_domain
 export VLESS_DOMAIN=$(echo $input_domain | idn)
 export TEST_DOMAIN=$(nslookup $VLESS_DOMAIN | awk -F': ' 'NR==6 { print $2 } ')
 if [ $TEST_DOMAIN -eq "" ]; then
-  read -ep "Are you sure? That domain has no DNS record. If you didn't add that you will have to restart xray and caddy by yourself [y/N]" prompt_response
+  read -ep "Are you sure? That domain has no DNS record. If you didn't add that you will have to restart xray and caddy by yourself [y/N]"$'\n' prompt_response
   if [[ "$prompt_response" =~ ^([yY]) ]]; then
     echo "Ok"
   else 
@@ -30,18 +30,18 @@ if [ $TEST_DOMAIN -eq "" ]; then
   fi
 fi
 
-read -ep "Do you want to install marzban? [y/N] "'\n' marzban_input
+read -ep "Do you want to install marzban? [y/N] "$'\n' marzban_input
 
 read -ep "Which page do you want to use to hide:
 1) Custom page, you will provide link. Be sure that this site works with iframe
-2) Confluence login page "'\n' camo_page_input
+2) Confluence login page "$'\n' camo_page_input
 if [[ ${camo_page_input} == "1" ]]; then
-  read -ep "Write a page you want to use to hide"'\n' page_hide_input
+  read -ep "Write a page you want to use to hide"$'\n' page_hide_input
   export PAGE_CAMO=$(echo $page_hide_input | cut -d'/' -f3)
-  read -ep "Write title for page. It will be displayed at tab name"'\n' page_desc_input
+  read -ep "Write title for page. It will be displayed at tab name"$'\n' page_desc_input
 fi
 
-read -ep "Do you want to configure server security? Do this on first run only. [y/N] "'\n' configure_ssh_input
+read -ep "Do you want to configure server security? Do this on first run only. [y/N] "$'\n' configure_ssh_input
 if [[ ${configure_ssh_input,,} == "y" ]]; then
   # Read SSH port
   read -ep "Enter SSH port. Default 22, can't use ports: 80, 443 and 4123:"$'\n' input_ssh_port
@@ -61,7 +61,7 @@ if [[ ${configure_ssh_input,,} == "y" ]]; then
   rm ./test_pbk
 fi
 
-read -ep "Do you want to install WARP and use it on russian websites? [y/N] "'\n' configure_warp_input
+read -ep "Do you want to install WARP and use it on russian websites? [y/N] "$'\n' configure_warp_input
 
 # Check congestion protocol
 if sysctl net.ipv4.tcp_congestion_control | grep bbr; then
