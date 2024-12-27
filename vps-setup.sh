@@ -161,10 +161,13 @@ add_user() {
   usermod -aG docker $SSH_USER
 }
 
+debconf-set-selections <<EOF
+iptables-persistent iptables-persistent/autosave_v4 boolean true
+iptables-persistent iptables-persistent/autosave_v6 boolean true
+EOF
+
 # Configure iptables
 edit_iptables() {
-  iptables-persistent iptables-persistent/autosave_v4 boolean true
-  iptables-persistent iptables-persistent/autosave_v6 boolean true
   apt-get install iptables-persistent netfilter-persistent -y
   iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
   iptables -A INPUT -p tcp -m state --state NEW -m tcp --dport $SSH_PORT -j ACCEPT
