@@ -23,7 +23,7 @@ SQLALCHEMY_DATABASE_URL = "sqlite:////var/lib/marzban/db.sqlite3"
 # CUSTOM_TEMPLATES_DIRECTORY="/var/lib/marzban/templates/"
 # CLASH_SUBSCRIPTION_TEMPLATE="clash/my-custom-template.yml"
 # SUBSCRIPTION_PAGE_TEMPLATE="subscription/index.html"
-# HOME_PAGE_TEMPLATE="home/index.html"
+HOME_PAGE_TEMPLATE="home/index.html"
 
 # V2RAY_SUBSCRIPTION_TEMPLATE="v2ray/default.json"
 # V2RAY_SETTINGS_TEMPLATE="v2ray/settings.json"

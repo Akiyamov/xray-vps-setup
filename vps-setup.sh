@@ -32,8 +32,15 @@ fi
 
 read -ep "Do you want to install marzban? [y/N] " marzban_input
 
-read -ep "Do you want to configure SSH by changing port and adding your public key? [y/N] " configure_ssh_input
+read -ep "Which page do you want to use to hide:
+1) Custom page, you will provide link. Be sure that this site works with iframe
+2) Confluence login page " camo_page_input
+if [[ ${camo_page_input} == "1" ]]; then
+  read -ep "Write a page you want to use to hide. Write without https:// and trailing /. Example: nonfree.pizza" page_hide_input
+  read -ep "Write title for page. It will be displayed at tab name" page_desc_input
+fi
 
+read -ep "Do you want to configure server security? Do this on first run only. [y/N] " configure_ssh_input
 if [[ ${configure_ssh_input,,} == "y" ]]; then
   # Read SSH port
   read -ep "Enter SSH port. Default 22, can't use ports: 80, 443 and 4123:"$'\n' input_ssh_port
@@ -43,7 +50,6 @@ if [[ ${configure_ssh_input,,} == "y" ]]; then
   done
   # Read SSH Pubkey
   read -ep "Enter SSH public key:"$'\n' input_ssh_pbk
-
   echo "$input_ssh_pbk" > ./test_pbk
   ssh-keygen -l -f ./test_pbk
   PBK_STATUS=$(echo $?)
@@ -106,6 +112,7 @@ xray_setup() {
      .services.marzban.network_mode = "host" | 
      .services.marzban.volumes[0] = "./marzban_lib:/var/lib/marzban" | 
      .services.marzban.volumes[1] = "./marzban/xray_config.json:/code/xray_config.json" |
+     .services.marzban.volumes[2] = "./marzban/templates:/var/lib/marzban/templates" |
      .services.caddy.volumes[3] = "./marzban_lib:/run/marzban"' -i /workdir/docker-compose.yml
     mkdir marzban caddy
     wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/marzban | envsubst > ./marzban/.env
@@ -131,6 +138,28 @@ xray_setup() {
 }
 
 xray_setup
+
+sshd_edit() {
+  echo "Port $SSH_PORT
+  PermitRootLogin no
+  PasswordAuthentication no
+  ChallengeResponseAuthentication no" > /etc/ssh/sshd_config.d/override.conf
+}
+
+add_user() {
+  useradd $SSH_USER
+  usermod -aG sudo $SSH_USER
+  echo $SSH_USER:$SSH_USER_PASS | chpasswd
+  echo root:$ROOT_USER_PASS | chpasswd
+  mkdir -p /home/$SSH_USER/.ssh
+  touch /home/$SSH_USER/.ssh/authorized_keys
+  echo $input_ssh_pbk >> /home/$SSH_USER/.ssh/authorized_keys
+  chmod 700 /home/$SSH_USER/.ssh/
+  chmod 600 /home/$SSH_USER/.ssh/authorized_keys
+  chown $SSH_USER:$SSH_USER -R /home/$SSH_USER
+  groupadd docker
+  usermod -aG docker $SSH_USER
+}
 
 # Configure iptables
 edit_iptables() {
@@ -188,14 +217,19 @@ warp_install() {
     warp-cli mode proxy
     warp-cli proxy port 40000
     warp-cli connect
+    if [[ "${marzban_input,,}" == "y" ]]; then
+      export XRAY_CONFIG_WARP="/workdir/marzban/xray_config.json"
+    else
+      export XRAY_CONFIG_WARP="/workdir/xray/config.json"
+    fi
     docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
     '.outbounds[.outbounds | length ] |= . + 
     {"tag": "warp", "protocl": "socks", "settings": 
     {"servers": [{"address": "127.0.0.1", "port": "40000", "users": []}]}}' \
-    -i /workdir/marzban/xray_config.json
+    -i $XRAY_CONFIG_WARP
     docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
     '.routing.rules[.routing.rules | length ] |= . 
     + {"outboundTag": "warp", "domain": ["geosite:ru"]}' \
-    -i /workdir/marzban/xray_config.json
+    -i $XRAY_CONFIG_WARP
   fi
 }
