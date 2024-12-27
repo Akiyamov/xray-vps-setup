@@ -30,18 +30,18 @@ if [ $TEST_DOMAIN -eq "" ]; then
   fi
 fi
 
-read -ep "Do you want to install marzban? [y/N] " marzban_input
+read -ep "Do you want to install marzban? [y/N] "'\n' marzban_input
 
 read -ep "Which page do you want to use to hide:
 1) Custom page, you will provide link. Be sure that this site works with iframe
-2) Confluence login page " camo_page_input
+2) Confluence login page "'\n' camo_page_input
 if [[ ${camo_page_input} == "1" ]]; then
-  read -ep "Write a page you want to use to hide. Write without https:// and trailing /. Example: nonfree.pizza" page_hide_input
+  read -ep "Write a page you want to use to hide"'\n' page_hide_input
   export PAGE_CAMO=$(echo $page_hide_input | cut -d'/' -f3)
-  read -ep "Write title for page. It will be displayed at tab name" page_desc_input
+  read -ep "Write title for page. It will be displayed at tab name"'\n' page_desc_input
 fi
 
-read -ep "Do you want to configure server security? Do this on first run only. [y/N] " configure_ssh_input
+read -ep "Do you want to configure server security? Do this on first run only. [y/N] "'\n' configure_ssh_input
 if [[ ${configure_ssh_input,,} == "y" ]]; then
   # Read SSH port
   read -ep "Enter SSH port. Default 22, can't use ports: 80, 443 and 4123:"$'\n' input_ssh_port
@@ -61,7 +61,7 @@ if [[ ${configure_ssh_input,,} == "y" ]]; then
   rm ./test_pbk
 fi
 
-read -ep "Do you want to install WARP and use it on russian websites? [y/N] " configure_warp_input
+read -ep "Do you want to install WARP and use it on russian websites? [y/N] "'\n' configure_warp_input
 
 # Check congestion protocol
 if sysctl net.ipv4.tcp_congestion_control | grep bbr; then
@@ -122,6 +122,7 @@ xray_setup() {
      .services.caddy.volumes[3] = "./marzban_lib:/run/marzban"' -i /workdir/docker-compose.yml
     mkdir -p marzban caddy
     wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/marzban | envsubst > ./marzban/.env
+    mkdir -p ./marzban/templates/home/index.html
     wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/$PAGE_NAME | envsubst > ./marzban/templates/home/index.html
     export CADDY_REVERSE="reverse_proxy * unix//run/marzban/marzban.socket"
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > ./caddy/Caddyfile
