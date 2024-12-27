@@ -214,6 +214,7 @@ warp_install() {
   '.routing.rules[.routing.rules | length ] |= . 
   + {"outboundTag": "warp", "domain": ["geosite:ru"]}' \
   -i $XRAY_CONFIG_WARP
+  docker compose -f /opt/xray-vps-setup/docker-compose.yml down && docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
 }
 
 end_script() {
