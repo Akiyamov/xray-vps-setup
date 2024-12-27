@@ -114,7 +114,7 @@ xray_setup() {
      .services.marzban.volumes[1] = "./marzban/xray_config.json:/code/xray_config.json" |
      .services.marzban.volumes[2] = "./marzban/templates:/var/lib/marzban/templates" |
      .services.caddy.volumes[3] = "./marzban_lib:/run/marzban"' -i /workdir/docker-compose.yml
-    mkdir marzban caddy
+    mkdir -p marzban caddy
     wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/marzban | envsubst > ./marzban/.env
     export CADDY_REVERSE="reverse_proxy * unix//run/marzban/marzban.socket"
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > ./caddy/Caddyfile
@@ -131,7 +131,7 @@ xray_setup() {
       xray_user $CADDY_BASIC_AUTH
     }
     file_server browse"
-    mkdir xray caddy
+    mkdir -p xray caddy
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > ./xray/config.json
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > ./caddy/Caddyfile
   fi
