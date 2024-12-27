@@ -189,39 +189,31 @@ fi
 
 # WARP Install function
 warp_install() {
+  echo "If this fails then warp won't be added to routing and everything will work without it"
   curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
   echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
   apt-get update 
   apt-get install cloudflare-warp -y
   
   echo "y" | warp-cli registration new
-  export WARP_RESULT=$(echo $?)
-  if [[ $WARP_RESULT != 0 ]]; then
-    echo "WARP got an error, not adding to config"
+  warp-cli mode proxy
+  warp-cli proxy port 40000
+  warp-cli connect
+  if [[ "${marzban_input,,}" == "y" ]]; then
+    export XRAY_CONFIG_WARP="/workdir/marzban/xray_config.json"
   else
-    warp-cli mode proxy
-    warp-cli proxy port 40000
-    warp-cli connect
-    if [[ "${marzban_input,,}" == "y" ]]; then
-      export XRAY_CONFIG_WARP="/workdir/marzban/xray_config.json"
-    else
-      export XRAY_CONFIG_WARP="/workdir/xray/config.json"
-    fi
-    docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
-    '.outbounds[.outbounds | length ] |= . + 
-    {"tag": "warp", "protocl": "socks", "settings": 
-    {"servers": [{"address": "127.0.0.1", "port": "40000", "users": []}]}}' \
-    -i $XRAY_CONFIG_WARP
-    docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
-    '.routing.rules[.routing.rules | length ] |= . 
-    + {"outboundTag": "warp", "domain": ["geosite:ru"]}' \
-    -i $XRAY_CONFIG_WARP
+    export XRAY_CONFIG_WARP="/workdir/xray/config.json"
   fi
+  docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
+  '.outbounds[.outbounds | length ] |= . + 
+  {"tag": "warp", "protocl": "socks", "settings": 
+  {"servers": [{"address": "127.0.0.1", "port": "40000", "users": []}]}}' \
+  -i $XRAY_CONFIG_WARP
+  docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
+  '.routing.rules[.routing.rules | length ] |= . 
+  + {"outboundTag": "warp", "domain": ["geosite:ru"]}' \
+  -i $XRAY_CONFIG_WARP
 }
-
-if [[ ${configure_warp_input,,} == "y" ]]; then
-  warp_install
-fi
 
 end_script() {
   if [[ "${marzban_input,,}" == "y" ]]; then
@@ -243,3 +235,7 @@ end_script() {
 }
 
 end_script
+
+if [[ ${configure_warp_input,,} == "y" ]]; then
+  warp_install
+fi
