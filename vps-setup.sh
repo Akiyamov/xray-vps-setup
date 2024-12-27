@@ -186,26 +186,6 @@ if [[ ${configure_ssh_input,,} == "y" ]]; then
   echo "New user for ssh: $SSH_USER, password for user: $SSH_USER_PASS. New port for SSH: $SSH_PORT. New password for root user: $ROOT_USER_PASS"
 fi
 
-end_script() {
-  if [[ "${marzban_input,,}" == "y" ]]; then
-    docker run -v /opt/xray-vps-setup/caddy/Caddyfile:/workdir/Caddyfile --rm caddy caddy fmt --overwrite /workdir/Caddyfile
-    docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
-    echo "Marzban location: https://$VLESS_DOMAIN/$MARZBAN_PATH. Marzban user: xray_admin, password: $MARZBAN_PASS"
-  else
-    docker run -v /opt/xray-vps-setup/caddy/Caddyfile:/workdir/Caddyfile --rm caddy caddy fmt --overwrite /workdir/Caddyfile
-    docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
-    echo "Clipboard string format"
-    echo "vless://$XRAY_UUID@$VLESS_DOMAIN:443?type=tcp&security=reality&pbk=$XRAY_PBK&fp=chrome&sni=$VLESS_DOMAIN&sid=$XRAY_SID&spx=%2F&flow=xtls-rprx-vision" | envsubst
-    echo "XRay outbound config"
-    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray_outbound | envsubst 
-    echo "Sing-box outbound config"
-    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/sing_box_outbound | envsubst 
-    echo "Plain data"
-    echo "PBK: $XRAY_PBK, SID: $XRAY_SID, UUID: $XRAY_UUID"
-  fi
-}
-
-end_script
 
 # WARP Install function
 warp_install() {
@@ -238,3 +218,28 @@ warp_install() {
     -i $XRAY_CONFIG_WARP
   fi
 }
+
+if [[ ${configure_warp_input,,} == "y" ]]; then
+  warp_install
+fi
+
+end_script() {
+  if [[ "${marzban_input,,}" == "y" ]]; then
+    docker run -v /opt/xray-vps-setup/caddy/Caddyfile:/workdir/Caddyfile --rm caddy caddy fmt --overwrite /workdir/Caddyfile
+    docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
+    echo "Marzban location: https://$VLESS_DOMAIN/$MARZBAN_PATH. Marzban user: xray_admin, password: $MARZBAN_PASS"
+  else
+    docker run -v /opt/xray-vps-setup/caddy/Caddyfile:/workdir/Caddyfile --rm caddy caddy fmt --overwrite /workdir/Caddyfile
+    docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
+    echo "Clipboard string format"
+    echo "vless://$XRAY_UUID@$VLESS_DOMAIN:443?type=tcp&security=reality&pbk=$XRAY_PBK&fp=chrome&sni=$VLESS_DOMAIN&sid=$XRAY_SID&spx=%2F&flow=xtls-rprx-vision" | envsubst
+    echo "XRay outbound config"
+    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray_outbound | envsubst 
+    echo "Sing-box outbound config"
+    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/sing_box_outbound | envsubst 
+    echo "Plain data"
+    echo "PBK: $XRAY_PBK, SID: $XRAY_SID, UUID: $XRAY_UUID"
+  fi
+}
+
+end_script
