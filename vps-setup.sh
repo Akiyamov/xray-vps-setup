@@ -96,6 +96,11 @@ export XRAY_UUID=$(docker run --rm ghcr.io/xtls/xray-core uuid)
 export XRAY_CFG="/usr/local/etc/xray/config.json"
 export IMAGES_CADDY=("IL1.png", "IL2.png", "IL3.png", "SW1.png", "SW2.png", "SW3.png")
 export IMAGE_CADDY=$(printf "%s\n" "${expressions[@]}" | shuf -n1)
+if [[ ${camo_page_input} -eq 1 ]]; then
+  export PAGE_NAME="mask_page"
+else
+  export PAGE_NAME="confluence_page"
+fi
 
 # Install marzban
 xray_setup() {
@@ -117,6 +122,7 @@ xray_setup() {
      .services.caddy.volumes[3] = "./marzban_lib:/run/marzban"' -i /workdir/docker-compose.yml
     mkdir -p marzban caddy
     wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/marzban | envsubst > ./marzban/.env
+    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/$PAGE_NAME | envsubst > ./marzban/templates/home/index.html
     export CADDY_REVERSE="reverse_proxy * unix//run/marzban/marzban.socket"
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > ./caddy/Caddyfile
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > ./marzban/xray_config.json
@@ -126,7 +132,9 @@ xray_setup() {
     '.services.xray.image = "ghcr.io/xtls/xray-core:sha-db934f0" | 
     .services.xray.restart = "always" | 
     .services.xray.network_mode = "host" | 
+    .services.caddy.volumes[3] = "./caddy/index.html:/etc/caddy/index.html" |
     .services.xray.volumes[0] = "./xray:/etc/xray"' -i /workdir/docker-compose.yml
+    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/$PAGE_NAME | envsubst > ./caddy/index.html
     export CADDY_REVERSE="root * /srv
     basic_auth * {
       xray_user $CADDY_BASIC_AUTH
