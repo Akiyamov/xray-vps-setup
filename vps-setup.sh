@@ -179,10 +179,12 @@ edit_iptables() {
   netfilter-persistent save
 }
 
-edit_iptables
-
-# Print user data
-echo "New user for ssh: $SSH_USER, password for user: $SSH_USER_PASS. New port for SSH: $SSH_PORT. New password for root user: $ROOT_USER_PASS"
+if [[ ${configure_ssh_input,,} == "y" ]]; then
+  sshd_edit
+  add_user
+  edit_iptables
+  echo "New user for ssh: $SSH_USER, password for user: $SSH_USER_PASS. New port for SSH: $SSH_PORT. New password for root user: $ROOT_USER_PASS"
+fi
 
 end_script() {
   if [[ "${marzban_input,,}" == "y" ]]; then
