@@ -37,6 +37,7 @@ read -ep "Which page do you want to use to hide:
 2) Confluence login page " camo_page_input
 if [[ ${camo_page_input} == "1" ]]; then
   read -ep "Write a page you want to use to hide. Write without https:// and trailing /. Example: nonfree.pizza" page_hide_input
+  export PAGE_CAMO=$(echo $page_hide_input | cut -d'/' -f3)
   read -ep "Write title for page. It will be displayed at tab name" page_desc_input
 fi
 
