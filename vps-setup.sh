@@ -1,7 +1,5 @@
 #/bin/bash
 
-set -e
-
 export GIT_BRANCH="marzban"
 export GIT_REPO="Akiyamov/xray-vps-setup"
 
@@ -214,24 +212,30 @@ warp_install() {
   apt-get install cloudflare-warp -y
   
   echo "y" | warp-cli registration new
-  warp-cli mode proxy
-  warp-cli proxy port 40000
-  warp-cli connect
-  if [[ "${marzban_input,,}" == "y" ]]; then
-    export XRAY_CONFIG_WARP="/workdir/marzban/xray_config.json"
+  export TRY_WARP=$(echo $?)
+  if [[ $TRY_WARP != 0 ]]; then
+    echo "Couldn't connect to WARP"
+    exit 0
   else
-    export XRAY_CONFIG_WARP="/workdir/xray/config.json"
+    warp-cli mode proxy
+    warp-cli proxy port 40000
+    warp-cli connect
+    if [[ "${marzban_input,,}" == "y" ]]; then
+      export XRAY_CONFIG_WARP="/workdir/marzban/xray_config.json"
+    else
+      export XRAY_CONFIG_WARP="/workdir/xray/config.json"
+    fi
+    docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
+    '.outbounds[.outbounds | length ] |= . + 
+    {"tag": "warp", "protocl": "socks", "settings": 
+    {"servers": [{"address": "127.0.0.1", "port": "40000", "users": []}]}}' \
+    -i $XRAY_CONFIG_WARP
+    docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
+    '.routing.rules[.routing.rules | length ] |= . 
+    + {"outboundTag": "warp", "domain": ["geosite:ru"]}' \
+    -i $XRAY_CONFIG_WARP
+    docker compose -f /opt/xray-vps-setup/docker-compose.yml down && docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
   fi
-  docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
-  '.outbounds[.outbounds | length ] |= . + 
-  {"tag": "warp", "protocl": "socks", "settings": 
-  {"servers": [{"address": "127.0.0.1", "port": "40000", "users": []}]}}' \
-  -i $XRAY_CONFIG_WARP
-  docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
-  '.routing.rules[.routing.rules | length ] |= . 
-  + {"outboundTag": "warp", "domain": ["geosite:ru"]}' \
-  -i $XRAY_CONFIG_WARP
-  docker compose -f /opt/xray-vps-setup/docker-compose.yml down && docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
 }
 
 end_script() {
