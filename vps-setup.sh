@@ -38,8 +38,14 @@ read -ep "Which page do you want to use to hide:
 if [[ ${camo_page_input} == "1" ]]; then
   read -ep "Write a page you want to use to hide"$'\n' page_hide_input
   export PAGE_CAMO=$(echo $page_hide_input | cut -d'/' -f3)
+  while ! curl -sS -D - https://stackoverflow.com -o /dev/null | grep x-frame-options; then
+    read -ep "This website seem to forbid iframe. Try another one"$'\n' page_hide_input
+    export PAGE_CAMO=$(echo $page_hide_input | cut -d'/' -f3)
+  done
   read -ep "Write title for page. It will be displayed at tab name"$'\n' page_desc_input
 fi
+
+echo $PAGE_CAMO
 
 read -ep "Do you want to configure server security? Do this on first run only. [y/N] "$'\n' configure_ssh_input
 if [[ ${configure_ssh_input,,} == "y" ]]; then

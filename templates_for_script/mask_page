@@ -20,7 +20,7 @@
 <script>
   // Changes here
   const title = "$page_desc_input";
-  const url = "https://$page_hide_input/";
+  const url = "https://$PAGE_CAMO/";
 
   document.title = title;
   console.log(document.getElementById('iframe'));
