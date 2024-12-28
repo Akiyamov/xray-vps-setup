@@ -39,12 +39,12 @@ set +e
 if [[ ${camo_page_input} == "1" ]]; then
   read -ep "Write a page you want to use to hide"$'\n' page_hide_input
   export PAGE_CAMO=$(echo $page_hide_input | cut -d'/' -f3)
-  curl -sS -D - https://$page_hide_input.com -o /dev/null | grep x-frame-options
+  curl -sS -D - https://$page_hide_input -o /dev/null | grep x-frame-options
   iframe_test=$(echo $?)
   while [[ $iframe_test != "1" ]]; do
     read -ep "This website seem to forbid iframe. Try another one"$'\n' page_hide_input
     export PAGE_CAMO=$(echo $page_hide_input | cut -d'/' -f3)
-    curl -sS -D - https://$page_hide_input.com -o /dev/null | grep x-frame-options
+    curl -sS -D - https://$page_hide_input -o /dev/null | grep x-frame-options
     iframe_test=$(echo $?)
   done
   read -ep "Write title for page. It will be displayed at tab name"$'\n' page_desc_input
