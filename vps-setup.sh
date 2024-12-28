@@ -1,5 +1,7 @@
 #/bin/bash
 
+set -e
+
 export GIT_BRANCH="marzban"
 export GIT_REPO="Akiyamov/xray-vps-setup"
 
@@ -33,10 +35,11 @@ read -ep "Do you want to install marzban? [y/N] "$'\n' marzban_input
 read -ep "Which page do you want to use to hide:
 1) Custom page, you will provide link. Be sure that this site works with iframe
 2) Confluence login page "$'\n' camo_page_input
+set +e
 if [[ ${camo_page_input} == "1" ]]; then
   read -ep "Write a page you want to use to hide"$'\n' page_hide_input
   export PAGE_CAMO=$(echo $page_hide_input | cut -d'/' -f3)
-  iframe_test=$(curl -sS -D - https://$page_hide_input.com -o /dev/null | grep x-frame-options)
+  iframe_test=$()
   while [[ $iframe_test -eq 1 ]]; do
     read -ep "This website seem to forbid iframe. Try another one"$'\n' page_hide_input
     export PAGE_CAMO=$(echo $page_hide_input | cut -d'/' -f3)
@@ -44,7 +47,7 @@ if [[ ${camo_page_input} == "1" ]]; then
   done
   read -ep "Write title for page. It will be displayed at tab name"$'\n' page_desc_input
 fi
-
+set -e
 echo $PAGE_CAMO
 
 read -ep "Do you want to configure server security? Do this on first run only. [y/N] "$'\n' configure_ssh_input
@@ -258,7 +261,7 @@ end_script() {
 }
 
 end_script
-
+set +e
 if [[ ${configure_warp_input,,} == "y" ]]; then
   warp_install
 fi
