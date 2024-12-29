@@ -160,6 +160,7 @@ sshd_edit() {
   PermitRootLogin no
   PasswordAuthentication no
   ChallengeResponseAuthentication no" > /etc/ssh/sshd_config.d/override.conf
+  systemctl restart ssh
 }
 
 add_user() {
