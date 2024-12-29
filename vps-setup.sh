@@ -173,7 +173,6 @@ add_user() {
   chmod 700 /home/$SSH_USER/.ssh/
   chmod 600 /home/$SSH_USER/.ssh/authorized_keys
   chown $SSH_USER:$SSH_USER -R /home/$SSH_USER
-  groupadd docker
   usermod -aG docker $SSH_USER
 }
 
