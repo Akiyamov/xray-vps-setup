@@ -56,7 +56,7 @@ if [[ ${configure_ssh_input,,} == "y" ]]; then
   # Read SSH port
   read -ep "Enter SSH port. Default 22, can't use ports: 80, 443 and 4123:"$'\n' input_ssh_port
 
-  while [ "$input_ssh_port" -eq "80"] || [ "$input_ssh_port" -eq "443" ] || [ "$input_ssh_port" -eq "4123" ]; do
+  while [[ "$input_ssh_port" -eq "80" || "$input_ssh_port" -eq "443" || "$input_ssh_port" -eq "4123" ]]; do
     read -ep "No, ssh can't use $input_ssh_port as port, write again:"$'\n' input_ssh_port
   done
   # Read SSH Pubkey
