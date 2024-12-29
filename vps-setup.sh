@@ -33,7 +33,7 @@ fi
 read -ep "Do you want to install marzban? [y/N] "$'\n' marzban_input
 
 read -ep "Which page do you want to use to hide:
-1) Custom page, you will provide link. Be sure that this site works with iframe
+1) Custom page, you will provide link. (Not recomended)
 2) Confluence login page "$'\n' camo_page_input
 set +e
 if [[ ${camo_page_input} == "1" ]]; then
@@ -50,7 +50,6 @@ if [[ ${camo_page_input} == "1" ]]; then
   read -ep "Write title for page. It will be displayed at tab name"$'\n' page_desc_input
 fi
 set -e
-echo $PAGE_CAMO
 
 read -ep "Do you want to configure server security? Do this on first run only. [y/N] "$'\n' configure_ssh_input
 if [[ ${configure_ssh_input,,} == "y" ]]; then
@@ -105,8 +104,6 @@ export XRAY_PBK=$(docker run --rm ghcr.io/xtls/xray-core x25519 -i $XRAY_PIK | t
 export XRAY_SID=$(openssl rand -hex 8)
 export XRAY_UUID=$(docker run --rm ghcr.io/xtls/xray-core uuid)
 export XRAY_CFG="/usr/local/etc/xray/config.json"
-export IMAGES_CADDY=("IL1.png", "IL2.png", "IL3.png", "SW1.png", "SW2.png", "SW3.png")
-export IMAGE_CADDY=$(printf "%s\n" "${expressions[@]}" | shuf -n1)
 if [[ ${camo_page_input} -eq 1 ]]; then
   export PAGE_NAME="mask_page"
 else
@@ -140,18 +137,16 @@ xray_setup() {
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > ./marzban/xray_config.json
   else
     wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/compose | envsubst > ./docker-compose.yml
+    mkdir -p /opt/xray-vps-setup/caddy/templates
     docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
     '.services.xray.image = "ghcr.io/xtls/xray-core:sha-db934f0" | 
     .services.xray.restart = "always" | 
     .services.xray.network_mode = "host" | 
-    .services.caddy.volumes[3] = "./caddy/index.html:/etc/caddy/index.html" |
+    .services.caddy.volumes[3] = "./caddy/templates:/srv" |
     .services.xray.volumes[0] = "./xray:/etc/xray"' -i /workdir/docker-compose.yml
-    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/$PAGE_NAME | envsubst > ./caddy/index.html
+    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/$PAGE_NAME | envsubst > ./caddy/templates/index.html
     export CADDY_REVERSE="root * /srv
-    basic_auth * {
-      xray_user $CADDY_BASIC_AUTH
-    }
-    file_server browse"
+    file_server"
     mkdir -p xray caddy
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > ./xray/config.json
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > ./caddy/Caddyfile

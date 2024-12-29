@@ -19,9 +19,7 @@ http://$VLESS_DOMAIN {
         redir https://$VLESS_DOMAIN{uri} permanent
 }
 :4123 {
-        tls internal {
-                on_demand
-        }
+        tls internal
         respond 204
 }
 :80 {
