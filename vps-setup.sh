@@ -156,10 +156,10 @@ xray_setup() {
 xray_setup
 
 sshd_edit() {
-  echo "Port $SSH_PORT
-  PermitRootLogin no
-  PasswordAuthentication no
-  ChallengeResponseAuthentication no" > /etc/ssh/sshd_config.d/override.conf
+  grep -r Port /etc/ssh -l | xargs -n 1 sed -i -e "/Port /c\Port $SSH_PORT"
+  grep -r PasswordAuthentication /etc/ssh -l | xargs -n 1 sed -i -e "/PasswordAuthentication /c\PasswordAuthentication no"
+  grep -r PermitRootLogin /etc/ssh -l | xargs -n 1 sed -i -e "/PermitRootLogin /c\PermitRootLogin no"
+  grep -r ChallengeResponseAuthentication /etc/ssh -l | xargs -n 1 sed -i -e "/PermitRootLogin /c\PermitRootLogin no"
   systemctl restart ssh
 }
 
