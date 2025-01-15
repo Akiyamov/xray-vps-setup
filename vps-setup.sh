@@ -94,7 +94,6 @@ fi
 # Generate values for XRay
 export SSH_USER=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8; echo)
 export SSH_USER_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13; echo)
-export ROOT_USER_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13; echo)
 export SSH_PORT=${input_ssh_port:-22}
 export ROOT_LOGIN="yes"
 export IP_CADDY=$(hostname -I | cut -d' ' -f1)
@@ -166,7 +165,6 @@ add_user() {
   useradd $SSH_USER
   usermod -aG sudo $SSH_USER
   echo $SSH_USER:$SSH_USER_PASS | chpasswd
-  echo root:$ROOT_USER_PASS | chpasswd
   mkdir -p /home/$SSH_USER/.ssh
   touch /home/$SSH_USER/.ssh/authorized_keys
   echo $input_ssh_pbk >> /home/$SSH_USER/.ssh/authorized_keys
@@ -198,17 +196,18 @@ if [[ ${configure_ssh_input,,} == "y" ]]; then
   sshd_edit
   add_user
   edit_iptables
-  echo "New user for ssh: $SSH_USER, password for user: $SSH_USER_PASS. New port for SSH: $SSH_PORT. New password for root user: $ROOT_USER_PASS"
+  echo "New user for ssh: $SSH_USER, password for user: $SSH_USER_PASS. New port for SSH: $SSH_PORT."
 fi
 
 
 # WARP Install function
 warp_install() {
+  apt install gpg -y
   echo "If this fails then warp won't be added to routing and everything will work without it"
-  curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
-  echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
-  apt-get update 
-  apt-get install cloudflare-warp -y
+  curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+  echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/cloudflare-client.list
+  apt update 
+  apt install cloudflare-warp -y
   
   echo "y" | warp-cli registration new
   export TRY_WARP=$(echo $?)
@@ -225,13 +224,10 @@ warp_install() {
       export XRAY_CONFIG_WARP="/workdir/xray/config.json"
     fi
     docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
-    '.outbounds[.outbounds | length ] |= . + 
-    {"tag": "warp", "protocl": "socks", "settings": 
-    {"servers": [{"address": "127.0.0.1", "port": "40000", "users": []}]}}' \
+    '.outbounds[.outbounds | length ] |= . + {"tag": "warp","protocol": "socks","settings": {"servers": [{"address": "127.0.0.1","port": 40000}]}}' \
     -i $XRAY_CONFIG_WARP
     docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
-    '.routing.rules[.routing.rules | length ] |= . 
-    + {"outboundTag": "warp", "domain": ["geosite:ru"]}' \
+    '.routing.rules[.routing.rules | length ] |= . + {"outboundTag": "warp", "ip": ["geoip:ru"]}' \
     -i $XRAY_CONFIG_WARP
     docker compose -f /opt/xray-vps-setup/docker-compose.yml down && docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
   fi
