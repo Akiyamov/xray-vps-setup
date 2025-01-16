@@ -227,7 +227,7 @@ warp_install() {
     '.outbounds[.outbounds | length ] |= . + {"tag": "warp","protocol": "socks","settings": {"servers": [{"address": "127.0.0.1","port": 40000}]}}' \
     -i $XRAY_CONFIG_WARP
     docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
-    '.routing.rules[.routing.rules | length ] |= . + {"outboundTag": "warp", "ip": ["geoip:ru"]}' \
+    '.routing.rules[.routing.rules | length ] |= . + {"outboundTag": "warp", "domain": ["geosite:category-ru"]}' \
     -i $XRAY_CONFIG_WARP
     docker compose -f /opt/xray-vps-setup/docker-compose.yml down && docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
   fi
