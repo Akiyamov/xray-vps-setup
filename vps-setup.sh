@@ -119,7 +119,7 @@ xray_setup() {
     export MARZBAN_SUB_PATH=$(openssl rand -hex 8)
     wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/compose | envsubst > ./docker-compose.yml
     docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
-    '.services.marzban.image = "gozargah/marzban:v0.7.0" |
+    '.services.marzban.image = "gozargah/marzban:v0.8.4" |
      .services.marzban.restart = "always" |
      .services.marzban.env_file = "./marzban/.env" |
      .services.marzban.network_mode = "host" | 
