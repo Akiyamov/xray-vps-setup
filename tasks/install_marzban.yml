@@ -1,0 +1,31 @@
+- name: Generate marzban specific values
+  block:
+    - name: Generate marzban password
+      set_fact:
+        MARZBAN_PASS: "{{ lookup('password', '/dev/null length=13 chars=ascii_letters') }}"
+    - name: Generate marzban password
+      set_fact:
+        MARZBAN_PATH: "{{ lookup('password', '/dev/null length=8 chars=ascii_letters') }}"
+    - name: Generate marzban password
+      set_fact:
+        MARZBAN_SUB_PATH: "{{ lookup('password', '/dev/null length=8 chars=ascii_letters') }}"
+- name: Create dirs
+  file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - /opt/xray-vps-setup/caddy
+    - /opt/xray-vps-setup/marzban
+    - /opt/xray-vps-setup/marzban/templates/home
+- name: Copy config files
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  loop:
+    - { src: "caddyfile.j2", dest: "/opt/xray-vps-setup/caddy/Caddyfile" }
+    - { src: "xray.json.j2", dest: "/opt/xray-vps-setup/marzban/xray_config.json" }
+    - { src: "marzban.j2", dest: "/opt/xray-vps-setup/marzban/.env" }
+    - { src: "confluence.j2", dest: "/opt/xray-vps-setup/marzban/templates/home/index.html" }
+    - { src: "marzban_docker.j2", dest: "/opt/xray-vps-setup/docker-compose.yml" }
+- debug:
+    msg: "Marzban password: {{ MARZBAN_PASS }}, marzban path: {{ MARZBAN_PATH }}"

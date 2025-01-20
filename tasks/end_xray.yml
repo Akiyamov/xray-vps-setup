@@ -1,0 +1,63 @@
+- name: Print clipboard string
+  debug:
+    msg: "vless://{{ xray_uuid.stdout }}@{{ vless.domain }}:443?type=tcp&security=reality&pbk={{ x25519_pbk.stdout }}&fp=chrome&sni={{ vless.domain }}&sid={{ short_id.stdout }}&spx=%2F&flow=xtls-rprx-vision"
+- name: XRay outbound config 
+  debug:
+    msg: |
+          {
+            "tag": "default",
+            "protocol": "vless",
+            "settings": {
+              "vnext": [
+                {
+                  "address": "{{ vless.domain }}",
+                  "port": 443,
+                  "users": [
+                    {
+                      "id": "{{ xray_uuid.stdout }}",
+                      "encryption": "none",
+                      "flow": "xtls-rprx-vision"
+                    }
+                  ]
+                }
+              ]
+            },
+            "streamSettings": {
+              "network": "tcp",
+              "security": "reality",
+              "realitySettings": {
+                "serverName": "{{ vless.domain }}",
+                "fingerprint": "chrome",
+                "publicKey": "{{ x25519_pbk.stdout }}",
+                "shortId": "{{ short_id.stdout }}",
+                "spiderX": ""
+              }
+            }
+          }
+- name: Sing-box outbound config
+  debug:
+    msg: |
+          {
+              "type": "vless",
+              "server": "{{ vless.domain }}",
+              "server_port": 443,
+              "uuid": "{{ xray_uuid.stdout }}",
+              "flow": "xtls-rprx-vision",
+              "tls": {
+                  "enabled": true,
+                  "insecure": false,
+                  "server_name": "{{ vless.domain }}",
+                  "utls": {
+                      "enabled": true,
+                      "fingerprint": "chrome"
+                  },
+                  "reality": {
+                      "enabled": true,
+                      "public_key": "{{ x25519_pbk.stdout }}",
+                      "short_id": "{{ short_id.stdout }}"
+                  }
+              }
+          }
+- name: Print PBK, SID and UUID to connect to server.
+  debug:
+    msg: "UUID: {{ xray_uuid.stdout }}, SID: {{ short_id.stdout }}, PBK: {{ x25519_pbk.stdout }}"

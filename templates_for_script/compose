@@ -6,4 +6,3 @@ services:
     volumes:
       - ./caddy/data:/data
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile
-      - ./caddy/access.log:/var/lib/caddy/access.log

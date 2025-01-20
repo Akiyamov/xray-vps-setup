@@ -1,0 +1,61 @@
+#- name: Add WARP GPG key
+#  ansible.builtin.get_url:
+#    url: https://pkg.cloudflareclient.com/pubkey.gpg
+#    dest: /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+#    mode: '0644'
+#    force: true
+- name: Add WARP GPG key
+  ansible.builtin.shell:
+    cmd: curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+- name: Add WARP repo
+  ansible.builtin.apt_repository:
+    filename: cloudflare-client
+    repo: "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ {{ ansible_facts['distribution_release'] }} main"
+- name:
+  apt:
+    name: cloudflare-warp
+    state: present
+    update_cache: yes
+- name: Register WARP
+  shell:
+    cmd: echo "y" | warp-cli registration new
+- shell:
+    cmd: warp-cli mode proxy
+- shell:
+    cmd: warp-cli proxy port 40000
+- shell:
+    cmd: warp-cli connect
+- name: Edit xray config
+  block:
+    - command:
+        argv:
+          - yq
+          - eval
+          - '.outbounds[.outbounds | length ] |= . + {"tag": "warp", "protocol": "socks","settings": {"servers": [{"address": "127.0.0.1","port": 40000}]}}'
+          - -i
+          - /opt/xray-vps-setup/xray/config.json
+    - command:
+        argv:
+          - yq
+          - eval
+          - '.routing.rules[.routing.rules | length ] |= . + {"outboundTag": "warp", "domain": ["geosite:category-ru"]}'
+          - -i
+          - /opt/xray-vps-setup/xray/config.json
+  when: setup_variant == "xray"
+- name: Edit marzban config
+  block:
+    - command:
+        argv: 
+          - yq
+          - eval
+          - '.outbounds[.outbounds | length ] |= . + {"tag": "warp", "protocol": "socks","settings": {"servers": [{"address": "127.0.0.1","port": 40000}]}}'
+          - -i
+          - /opt/xray-vps-setup/marzban/xray_config.json
+    - command:
+        argv:
+          - yq
+          - eval
+          - '.routing.rules[.routing.rules | length ] |= . + {"outboundTag": "warp", "domain": ["geosite:category-ru"]}'
+          - -i
+          - /opt/xray-vps-setup/marzban/xray_config.json
+  when: setup_variant == "marzban"

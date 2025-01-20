@@ -1,51 +1,54 @@
 {
   "log": {
-    "loglevel": "none"
+    "loglevel": "info"
   },
-  "inbounds": [{
-    "tag": "VLESS TCP VISION REALITY",
-    "listen": "0.0.0.0",
-    "port": 443,
-    "protocol": "vless",
-    "settings": {
-      "clients": [
-      {
-        "id": "{{ xray_uuid.stdout}}",
-        "email": "default",
-        "flow": "xtls-rprx-vision"
-      }],
-      "decryption": "none"
-    },
-    "streamSettings": {
-      "network": "tcp",
-      "security": "reality",
-      "realitySettings": {
-        "xver": 1,
-        "dest": "127.0.0.1:4123",
-        "serverNames": [
-          "{{ vless.domain }}"
+  "inbounds": [
+    {
+      "tag": "VLESS TCP VISION REALITY",
+      "listen": "0.0.0.0",
+      "port": 443,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+        {
+          "id": "{{ xray_uuid.stdout}}",
+          "email": "default",
+          "flow": "xtls-rprx-vision"
+        }],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "raw",
+        "security": "reality",
+        "realitySettings": {
+          "xver": 1,
+          "dest": "127.0.0.1:4123",
+          "serverNames": [
+            "{{ domain }}"
+          ],
+          "privateKey": "{{ x25519_pik.stdout }}",
+          "shortIds": [
+            "{{ short_id.stdout }}"
+          ]
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls"
         ],
-        "privateKey": "{{ x25519_pik.stdout }}",
-        "shortIds": [
-          "{{ short_id.stdout }}"
-        ]
+        "routeOnly": true
       }
-    },
-    "sniffing": {
-      "enabled": true,
-      "destOverride": [
-        "http",
-        "tls",
-        "quic"
-      ],
-      "routeOnly": true
     }
-  }],
+  ],
   "outbounds": [
     {
       "protocol": "freedom",
       "tag": "direct",
-      "settings": { "domainStrategy": "UseIPv4" }
+      "settings": {
+        "domainStrategy": "UseIPv4"
+      }
     },
     {
       "protocol": "blackhole",
@@ -54,7 +57,10 @@
   ],
   "routing": {
     "rules": [
-        {"protocol": "bittorrent", "outboundTag": "block"}
+      {
+        "protocol": "bittorrent",
+        "outboundTag": "block"
+      }
     ],
     "domainStrategy": "IPIfNonMatch"
   },

@@ -1,28 +1,10 @@
-- name: Try to install BBR
-  when: 
-    - "{{ ansible_facts['kernel'] is version('4.9', '>=') }}"
-  block: 
-    - name: Check if BBR installed
-      when: sysctl_bbr != 0
-      block:
-        - debug:
-            msg: "{{ inventory_hostname }} can use BBR and it will be enabled."
-        - name: Set BBR
-          ansible.posix.sysctl:
-            name: net.core.default_qdisc
-            value: "fq"
-            state: present
-        - name: Set queue
-          ansible.posix.sysctl:
-            name: net.ipv4.tcp_congestion_control
-            value: "bbr"
-            state: present
-    - name: BBR Already on
-      when: sysctl_bbr == 0
-      debug:
-        msg: "{{ inventory_hostname }} is already using BBR"
-  rescue:
-    - name: Print reason why BBR install failed
-      when: "{{ ansible_facts['kernel'] is version('4.9', '>=') }}"
-      debug:
-        msg: "{{ inventory_hostname }} uses kernel that is older than 4.9, BBR can't be installed"
+- name: Set BBR
+  ansible.posix.sysctl:
+    name: net.core.default_qdisc
+    value: "fq"
+    state: present
+- name: Set queue
+  ansible.posix.sysctl:
+    name: net.ipv4.tcp_congestion_control
+    value: "bbr"
+    state: present

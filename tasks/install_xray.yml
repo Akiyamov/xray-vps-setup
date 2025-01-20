@@ -1,0 +1,16 @@
+- name: Create dirs
+  file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - /opt/xray-vps-setup/caddy/templates
+    - /opt/xray-vps-setup/xray
+- name: Copy config files
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  loop:
+    - { src: "caddyfile.j2", dest: "/opt/xray-vps-setup/caddy/Caddyfile" }
+    - { src: "confluence.j2", dest: "/opt/xray-vps-setup/caddy/templates/index.html" }
+    - { src: "xray.json.j2", dest: "/opt/xray-vps-setup/xray/config.json" }
+    - { src: "xray_docker.j2", dest: "/opt/xray-vps-setup/docker-compose.yml" }

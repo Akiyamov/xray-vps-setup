@@ -108,7 +108,7 @@ xray_setup() {
      .services.marzban.volumes[0] = "./marzban_lib:/var/lib/marzban" | 
      .services.marzban.volumes[1] = "./marzban/xray_config.json:/code/xray_config.json" |
      .services.marzban.volumes[2] = "./marzban/templates:/var/lib/marzban/templates" |
-     .services.caddy.volumes[3] = "./marzban_lib:/run/marzban"' -i /opt/xray-vps-setup/docker-compose.yml
+     .services.caddy.volumes[2] = "./marzban_lib:/run/marzban"' -i /opt/xray-vps-setup/docker-compose.yml
     mkdir -p marzban caddy
     wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/marzban | envsubst > ./marzban/.env
     mkdir -p /opt/xray-vps-setup/marzban/templates/home
@@ -123,7 +123,7 @@ xray_setup() {
     '.services.xray.image = "ghcr.io/xtls/xray-core:25.1.1" | 
     .services.xray.restart = "always" | 
     .services.xray.network_mode = "host" | 
-    .services.caddy.volumes[3] = "./caddy/templates:/srv" |
+    .services.caddy.volumes[2] = "./caddy/templates:/srv" |
     .services.xray.volumes[0] = "./xray:/etc/xray"' -i /opt/xray-vps-setup/docker-compose.yml
     wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/confluence_page | envsubst > ./caddy/templates/index.html
     export CADDY_REVERSE="root * /srv

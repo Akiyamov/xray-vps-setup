@@ -1,5 +1,9 @@
 - name: IPTables rules
   block:
+    - name: Install netfilter-persistent
+      apt:
+        name: netfilter-persistent
+        state: present
     - name: Allow related and established connections
       ansible.builtin.iptables:
         chain: INPUT
@@ -10,7 +14,7 @@
       ansible.builtin.iptables:
         chain: INPUT
         protocol: tcp
-        destination_port: "{{ ssh_port }}"
+        destination_port: "{{ SSH_PORT }}"
         ctstate: NEW
         syn: match
         jump: ACCEPT
@@ -35,5 +39,3 @@
     - name: Save iptables rules
       shell:
         cmd: netfilter-persistent save
-  notify:
-    - Restart ssh

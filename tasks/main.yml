@@ -1,231 +1,54 @@
 ---
-# tasks file for vps-setup
-- name: get value
-  shell:
-    cmd: "sysctl net.ipv4.tcp_congestion_control | grep -o bbr"
-  register: grep_output
-  ignore_errors: yes
-  changed_when: false
-- name: Set the variable
-  set_fact:
-    sysctl_bbr: "{% if grep_output.stdout == 'bbr' %}true{% else %}false{% endif %}"
-- name: Create xray_user password
-  shell:
-    cmd: "tr -dc A-Za-z0-9 </dev/urandom | head -c 13; echo"
-  register: xray_user_pass
-- name: Create root password
-  shell:
-    cmd: "tr -dc A-Za-z0-9 </dev/urandom | head -c 13; echo"
-  register: root_user_pass
-- name: Create caddy basic auth
-  shell:
-    cmd: "echo {{ root_user_pass.stdout }} | caddy hash-password"
-  register: caddy_basic_auth
-- name: Try to install BBR
-  when: 
-    - "{{ ansible_facts['kernel'] is version('4.9', '>=') }}"
-  block: 
-    - name: Check if BBR installed
-      when: sysctl_bbr != 0
-      block:
-        - debug:
-            msg: "{{ inventory_hostname }} can use BBR and it will be enabled."
-        - name: Set BBR
-          ansible.posix.sysctl:
-            name: net.core.default_qdisc
-            value: "fq"
-            state: present
-        - name: Set queue
-          ansible.posix.sysctl:
-            name: net.ipv4.tcp_congestion_control
-            value: "bbr"
-            state: present
-    - name: BBR Already on
-      when: sysctl_bbr == 0
-      debug:
-        msg: "{{ inventory_hostname }} is already using BBR"
-  rescue:
-    - name: Print reason why BBR install failed
-      when: "{{ ansible_facts['kernel'] is version('4.9', '>=') }}"
-      debug:
-        msg: "{{ inventory_hostname }} uses kernel that is older than 4.9, BBR can't be installed"
-- name: APT
+- name: Populate service facts
+  ansible.builtin.service_facts:
+- name: Enable BBR
+  include_tasks: bbr.yml
+- name: Install docker
+  include_tasks: install_docker.yml
+  when: ansible_facts.services['docker'] is undefined
+- name: Install/update yq
+  include_tasks: install_yq.yml
+- name: Security block
   block:
-    - name: Update APT Cache
-      apt:
-        update_cache: yes
-        force_apt_get: yes
-    - name: Remove apt lock file
-      file:
-        state: absent
-        path: "/var/lib/dpkg/lock"
-    - name: Install tools for keyrings
-      ansible.builtin.apt:
-        pkg:
-          - gpg
-          - debian-keyring 
-          - debian-archive-keyring 
-          - apt-transport-https 
-          - curl
-          - iptables-persistent 
-        update_cache: yes
-    - name: Setup GPG
-      ansible.builtin.shell:
-        cmd: curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor --yes -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-    - name: Add to repos
-      ansible.builtin.apt_repository:
-        state: present
-        repo: deb [signed-by=/usr/share/keyrings/caddy-stable-archive-keyring.gpg] https://dl.cloudsmith.io/public/caddy/stable/deb/debian any-version main
-- name: Install caddy, jq and sudo
-  ansible.builtin.apt:
-    pkg:
-      - caddy
-      - jq
-      - sudo
-    update_cache: yes
+    - name: Edit SSHD config
+      include_tasks: ssh.yml
+    - name: Edit iptables
+      include_tasks: iptables.yml
+    - name: Add user
+      include_tasks: user.yml
+  when: configure_security|default(false)|bool == true
+- name: Generate values
+  block:
+    - name: Generate x25519 PIK 
+      shell:
+        cmd: docker run --rm ghcr.io/xtls/xray-core x25519 | head -n1 | cut -d' ' -f 3
+      register: x25519_pik
+    - name: Generate x25519 PBK 
+      shell:
+        cmd: docker run --rm ghcr.io/xtls/xray-core x25519 -i {{ x25519_pik.stdout }} | tail -1 | cut -d' ' -f 3
+      register: x25519_pbk
+    - name: Generate SID
+      shell:
+        cmd: openssl rand -hex 8
+      register: short_id
+    - name: Generate default user
+      shell:
+        cmd: docker run --rm ghcr.io/xtls/xray-core uuid
+      register: xray_uuid
+- name: Install marzban
+  include_tasks: install_marzban.yml
+  when: setup_variant == "marzban"
 - name: Install xray
-  shell:
-    cmd: bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
-- name: Generate x25519 PIK 
-  shell:
-    cmd: xray x25519 | head -n1 | cut -d' ' -f 3
-  register: x25519_pik
-- name: Generate x25519 PBK 
-  shell:
-    cmd: xray x25519 -i {{ x25519_pik.stdout }} | tail -1 | cut -d' ' -f 3
-  register: x25519_pbk
-- name: Generate SID
-  shell:
-    cmd: openssl rand -hex 8
-  register: short_id
-- name: Generate default user
-  shell:
-    cmd: xray uuid
-  register: xray_uuid
-- name: Copy config files
-  ansible.builtin.template:
-    src: "{{ item.src }}"
-    dest: "{{ item.dest }}"
-  loop:
-    - { src: "caddyfile.j2", dest: "/etc/caddy/Caddyfile" }
-    - { src: "xray.json.j2", dest: "/usr/local/etc/xray/config.json" }
-    - { src: "ssh_config.j2", dest: "/etc/ssh/sshd_config" }
-  notify:
-    - Restart xray
-    - Restart caddy
-- name: Create new user
-  ansible.builtin.user:
-    name: "xray_user"
-    group: "sudoers"
-- name: Set password for xray_user and root
-  shell:
-    cmd: 
-      - "echo xray_user:{{ xray_user_pass.stdout }} | chpasswd"
-      - "echo root:{{ root_user_pass.stdout }} | chpasswd"
-- name: Add ssh_pbk to user
-  ansible.posix.authorized_key:
-    user: "xray_user"
-    state: "present"
-    key: "{{ ssh_public_key }}"
-- name: IPTables rules
-  block:
-    - name: Allow related and established connections
-      ansible.builtin.iptables:
-        chain: INPUT
-        ctstate: ESTABLISHED,RELATED
-        jump: ACCEPT
-      become: yes
-    - name: Allow new incoming SYN packets on specified port
-      ansible.builtin.iptables:
-        chain: INPUT
-        protocol: tcp
-        destination_port: "{{ ssh_port }}"
-        ctstate: NEW
-        syn: match
-        jump: ACCEPT
-    - name: Allow 80, 443 connections
-      ansible.builtin.iptables:
-        chain: INPUT
-        protocol: tcp
-        destination_ports:
-          - "80"
-          - "443"
-        jump: ACCEPT
-    - name: Allow loopback in
-      shell:
-        cmd: iptables -A INPUT -i lo -j ACCEPT
-    - name: Allow loopback out
-      shell:
-        cmd: iptables -A OUTPUT -o lo -j ACCEPT
-    - name: INPUT DROP
-      ansible.builtin.iptables:
-        chain: INPUT
-        policy: DROP
-    - name: Save iptables rules
-      shell:
-        cmd: netfilter-persistent save
-  notify:
-    - Restart ssh
-- name: Print clipboard string
-  debug:
-    msg: "vless://{{ xray_uuid.stdout }}@{{ vless.domain }}:443?type=tcp&security=reality&pbk={{ x25519_pbk.stdout }}&fp=chrome&sni={{ vless.domain }}&sid={{ short_id.stdout }}&spx=%2F&flow=xtls-rprx-vision"
-- name: XRay outbound config 
-  debug:
-    msg: |
-          {
-            "tag": "default",
-            "protocol": "vless",
-            "settings": {
-              "vnext": [
-                {
-                  "address": "{{ vless.domain }}",
-                  "port": 443,
-                  "users": [
-                    {
-                      "id": "{{ xray_uuid.stdout }}",
-                      "encryption": "none",
-                      "flow": "xtls-rprx-vision"
-                    }
-                  ]
-                }
-              ]
-            },
-            "streamSettings": {
-              "network": "tcp",
-              "security": "reality",
-              "realitySettings": {
-                "serverName": "{{ vless.domain }}",
-                "fingerprint": "chrome",
-                "publicKey": "{{ x25519_pbk.stdout }}",
-                "shortId": "{{ short_id.stdout }}",
-                "spiderX": ""
-              }
-            }
-          }
-- name: Sing-box outbound config
-  debug:
-    msg: |
-          {
-              "type": "vless",
-              "server": "{{ vless.domain }}",
-              "server_port": 443,
-              "uuid": "{{ xray_uuid.stdout }}",
-              "flow": "xtls-rprx-vision",
-              "tls": {
-                  "enabled": true,
-                  "insecure": false,
-                  "server_name": "{{ vless.domain }}",
-                  "utls": {
-                      "enabled": true,
-                      "fingerprint": "chrome"
-                  },
-                  "reality": {
-                      "enabled": true,
-                      "public_key": "{{ x25519_pbk.stdout }}",
-                      "short_id": "{{ short_id.stdout }}"
-                  }
-              }
-          }
-- name: Print PBK, SID and UUID to connect to server.
-  debug:
-    msg: "UUID: {{ xray_uuid.stdout }}, SID: {{ short_id.stdout }}, PBK: {{ x25519_pbk.stdout }}"
+  include_tasks: install_xray.yml
+  when: setup_variant == "xray"
+- name: Install warp
+  include_tasks: setup_warp.yml
+  when: setup_warp|default(false)|bool == true
+- name: Start proxy
+  community.docker.docker_compose_v2:
+    project_src: /opt/xray-vps-setup
+    files:
+    - docker-compose.yml
+- name: End xray
+  include_tasks: end_xray.yml
+  when: setup_variant == "xray"

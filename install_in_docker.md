@@ -1,10 +1,10 @@
 <h1 align="center">VLESS + Reality Self Steal в Docker</h2>
 
 ### Что потребуется:
-- VPS хотя бы на 1 гигабайт
+- VPS 
 - Свой домен
 
-В статье будет рассмотрена установка как чистого XRay, так и Marzban.  
+В статье будет рассмотрена установка как чистого Xray, так и Marzban.  
 
 ## Настройка сервера
 
@@ -28,7 +28,11 @@ ssh-copy-id -i $env:USERPROFILE\.ssh\id_ed25519.pub ваш_пользовате�
 ```powershell
 type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh ваш_пользователь@ваша_vps "cat >> .ssh/authorized_keys"
 ```
-После того, как мы добавили ключ пользователю, можно запретить вход по паролю на систему. Для этого в файле `/etc/ssh/sshd_config` нужно найти строчку `PasswordAuthentication` и поменять ее на `PasswordAuthentication no`. Если стоит `#` перед строкой, то надо убрать.
+__Далее все делается на VPS.__  
+Для отключения входа по паролю выполняем следующую команду:
+```bash
+grep -r PasswordAuthentication /etc/ssh -l | xargs -n 1 sed -i -e "/PasswordAuthentication /c\PasswordAuthentication no"
+```
 Сделав это можно перезапустить SSH. 
 ```bash
 sudo systemctl restart ssh
@@ -42,6 +46,8 @@ iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
 iptables -A INPUT -p tcp -m state --state NEW -m tcp --dport 22 -j ACCEPT 
 iptables -A INPUT -p tcp -m tcp --dport 80 -j ACCEPT
 iptables -A INPUT -p tcp -m tcp --dport 443 -j ACCEPT
+iptables -A INPUT -i lo -j ACCEPT
+iptables -A OUTPUT -o lo -j ACCEPT
 iptables -P INPUT DROP
 iptables-save > /etc/network/iptables.rules
 ```
@@ -69,6 +75,7 @@ sudo usermod -aG docker $USER
 
 ### Получение данных для прокси
 В этой части будут описаны необходимые данные, а также способ их получения. Позже эти данные будут использованы в конфигурации.  
+- __VLESS_DOMAIN__: Ваш домен. Если используется punycode, то далее используется ТОЛЬКО на латинице.  
 - __XRAY_PBK+PIK__: `docker run --rm ghcr.io/xtls/xray-core x25519`
 Оба значения для нас важны, Public key = PBK, Private key = PIK.  
 - __XRAY_SID__: `openssl rand -hex 8`
@@ -87,7 +94,10 @@ URL подписок
 ### Настройка прокси
 Создадим папку `/opt/xray-vps-setup` командой `mkdir -p /opt/xray-vpx-setup`.  
 После этого переходим в папку и создаем в ней файл `docker-compose.yml`  
-<details><summary>Marzban</summary>
+
+<details>
+  <summary>Marzban</summary>  
+
 ```yaml
 services:
   caddy:
@@ -97,53 +107,42 @@ services:
     volumes:
       - ./caddy/data:/data
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile
-      - ./marzban/run:/var/lib/marzban
+      - ./marzban_lib:/run/marzban
   marzban:
-    image: gozargah/marzban:v0.7.0
+    image: gozargah/marzban:v0.8.4
     restart: always
     env_file: ./marzban/.env
     network_mode: host
     volumes:
-      - ./marzban/run:/var/lib/marzban
+      - ./marzban_lib:/var/lib/marzban
       - ./marzban/xray_config.json:/code/xray_config.json
-```
+      - ./marzban/templates:/var/lib/marzban/templates
+```  
 </details>
-<details><summary>Чистый Xray</summary>
+<details>
+  <summary>Xray</summary>  
+
 ```yaml
-{
-        https_port 4123
-        default_bind 127.0.0.1
-        servers {
-                listener_wrappers {
-                        proxy_protocol {
-                                allow 127.0.0.1/32
-                        }
-                        tls
-                }
-        }
-        auto_https disable_redirects
-}
-https://$VLESS_DOMAIN {
-        reverse_proxy http://127.0.0.1:8000
-}
-:4123 {
-        tls internal {
-                on_demand
-        }
-        respond 204
-}
-:80 {
-        bind 0.0.0.0
-        respond 204
-}
-http://$VLESS_DOMAIN {
-        bind 0.0.0.0
-        redir https://$VLESS_DOMAIN{uri} permanent
-}
-```
+services:
+  caddy:
+    image: caddy:2.9
+    restart: always
+    network_mode: host
+    volumes:
+      - ./caddy/data:/data
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./caddy/templates:/srv
+  xray:
+    image: ghcr.io/xtls/xray-core:25.1.1
+    restart: always
+    network_mode: host
+    volumes:
+      - ./xray:/etc/xray
+```  
 </details>
 Создаем папку `/opt/xray-vpx-setup/caddy` и в ней создаем файл `Caddyfile` и меняем его следующим образом.  
 <details><summary>Marzban</summary>
+
 ```yaml
 {
         https_port 4123
@@ -158,7 +157,7 @@ http://$VLESS_DOMAIN {
         }
         auto_https disable_redirects
 }
-https://$VLESS_DOMAIN {
+https://$VLESS_DOMAIN { 
         reverse_proxy * unix//run/marzban/marzban.socket
 }
 http://$VLESS_DOMAIN {
@@ -174,8 +173,10 @@ http://$VLESS_DOMAIN {
         respond 204
 }
 ```
+
 </details>
 <details><summary>Чистый Xray</summary>
+
 ```yaml
 {
         https_port 4123
@@ -192,10 +193,7 @@ http://$VLESS_DOMAIN {
 }
 https://$VLESS_DOMAIN {
         root * /srv
-        basic_auth * {
-          xray_user $CADDY_BASIC_AUTH
-        }
-        file_server browse"
+        file_server
 }
 http://$VLESS_DOMAIN {
         bind 0.0.0.0
@@ -210,8 +208,21 @@ http://$VLESS_DOMAIN {
         respond 204
 }
 ```
+
 </details>
-После этого надо создать файл конфигурации XRay, если вы ставите marzban, то он будет находится в `/opt/xray-vps-setup/marzban/xray_config.json`, если чистый xray, то `/opt/xray-vps-setup/xray/config.json`
+Настроив caddy требуется добавить страницу для маскировки. Для xray и marzban команды отличаются:  
+Xray  
+
+```bash
+wget -qO- https://raw.githubusercontent.com/Jolymmiles/confluence-marzban-home/main/index.html  | envsubst > /opt/xray-vps-setup/caddy/templates/index.html
+```
+Marzban
+```bash
+wget -qO- https://raw.githubusercontent.com/Jolymmiles/confluence-marzban-home/main/index.html  | envsubst > /opt/xray-vps-setup/marzban/templates/home/index.html
+```
+
+После этого надо создать файл конфигурации Xray, если вы ставите marzban, то он будет находится в `/opt/xray-vps-setup/marzban/xray_config.json`, если чистый xray, то `/opt/xray-vps-setup/xray/config.json`  
+
 ```json
 {
   "log": {
@@ -226,7 +237,7 @@ http://$VLESS_DOMAIN {
       "settings": {
         "clients": [
           {
-            "id": "d2dcb7f6-2c14-4f4a-bae6-ecd9aff7dafd",
+            "id": "XRAY_UUDI", // ПОМЕНЯТЬ НА СВОЕ
             "email": "default",
             "flow": "xtls-rprx-vision"
           }
@@ -234,18 +245,17 @@ http://$VLESS_DOMAIN {
         "decryption": "none"
       },
       "streamSettings": {
-        "network": "tcp",
+        "network": "raw",
         "security": "reality",
         "realitySettings": {
           "xver": 1,
           "dest": "127.0.0.1:4123",
           "serverNames": [
-            "xn--80aqgfvid.xn-----6kc7awhbxbfs.xn--p1ai",
-            "xn--2-7sbyihzje.xn-----6kc7awhbxbfs.xn--p1ai"
+            "VLESS_DOMAIN" // ПОМЕНЯТЬ НА СВОЕ
           ],
-          "privateKey": "kJJJyalL0SVoM8CW9sPc-u3ZBhxMC8aGHGp6vaCIRCQ",
+          "privateKey": "XRAY_PIK", // ПОМЕНЯТЬ НА СВОЕ
           "shortIds": [
-            "f17ce893777a0d11"
+            "XRAY_SID" // ПОМЕНЯТЬ НА СВОЕ
           ]
         }
       },
@@ -275,7 +285,8 @@ http://$VLESS_DOMAIN {
   "routing": {
     "rules": [
       {
-        "protocol": "bittorrent"
+        "protocol": "bittorrent",
+        "outboundTag": "block"
       }
     ],
     "domainStrategy": "IPIfNonMatch"
@@ -291,3 +302,51 @@ http://$VLESS_DOMAIN {
   }
 }
 ```
+
+Для Marzban необходимо также добавить `.env` файл. Создайте файл `/opt/xray-vps-setup/marzban/.env` и вставьте следующее: 
+```
+SUDO_USERNAME = "xray_admin"
+SUDO_PASSWORD = "$MARZBAN_PASS"
+UVICORN_UDS = "/var/lib/marzban/marzban.socket"
+DASHBOARD_PATH = "/$MARZBAN_PATH/"
+XRAY_JSON = "xray_config.json"
+XRAY_SUBSCRIPTION_URL_PREFIX = "https://$VLESS_DOMAIN"
+XRAY_SUBSCRIPTION_PATH = "$MARZBAN_SUB_PATH"
+SQLALCHEMY_DATABASE_URL = "sqlite:////var/lib/marzban/db.sqlite3"
+CUSTOM_TEMPLATES_DIRECTORY="/var/lib/marzban/templates/"
+SUBSCRIPTION_PAGE_TEMPLATE="subscription/index.html"
+HOME_PAGE_TEMPLATE="home/index.html"
+```
+
+## Настройка WARP
+
+Для того, чтобы доабвить WARP для того, чтобы в Россию наш юзер ходил черзе него, то надо сделать следующее.  
+Устанавливаем WARP:
+```bash
+curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/cloudflare-client.list
+apt update 
+apt install cloudflare-warp -y
+```
+Настроим WARP:
+```bash
+warp-cli registration new
+warp-cli mode proxy
+warp-cli proxy port 40000
+warp-cli connect
+```
+Если на этом этапе ловим ошибку подключения, то не продолжайте, WARP не рабоатет.  
+Далее с помощью `yq` мы установим в уже существующий кофниг WARP:
+```bash
+yq eval '.outbounds[.outbounds | length ] |= . + {"tag": "warp","protocol": "socks","settings": {"servers": [{"address": "127.0.0.1","port": 40000}]}}' -i $XRAY_CONFIG_WARP
+yq eval '.routing.rules[.routing.rules | length ] |= . + {"outboundTag": "warp", "domain": ["geosite:category-ru"]}' -i $XRAY_CONFIG_WARP
+
+```
+Заменяем $XRAY_CONFIG_WARP на `/opt/xray-vps-setup/marzban/xray_config.json` для marzban и на `/opt/xray-vps-setup/xray/config.json` для чистого xray. После этого перезапускаем все:
+```bash
+docker compose -f /opt/xray-vps-setup/docker-compose.yml down && docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
+```
+
+#
+
+Если вы хотите помочь что-то исправить, добавить и тд, то делайте PR или пишите в [ТГ](https://t.me/Akiyamov).

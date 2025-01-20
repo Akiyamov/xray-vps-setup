@@ -1,0 +1,15 @@
+services:
+  caddy:
+    image: caddy:2.9
+    restart: always
+    network_mode: host
+    volumes:
+      - ./caddy/data:/data
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./caddy/templates:/srv
+  xray:
+    image: ghcr.io/xtls/xray-core:25.1.1
+    restart: always
+    network_mode: host
+    volumes:
+      - ./xray:/etc/xray

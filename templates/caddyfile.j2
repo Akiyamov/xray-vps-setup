@@ -2,7 +2,6 @@
   https_port 4123
   default_bind 127.0.0.1
   servers {
-    protocols h1 h2
     listener_wrappers {
       proxy_protocol {
         allow 127.0.0.1/32
@@ -12,24 +11,23 @@
   }
   auto_https disable_redirects
 }
-https://{{ vless.domain }} {
-{ % if "setup_variant" == "marzban" % }
-  reverse_proxy http://127.0.0.1:8000
-{ % else % }
+https://{{ domain }} {
+{% if setup_variant == "marzban" %}
+  reverse_proxy * unix//run/marzban/marzban.socket
+{% else %}
   root * /srv
-  basic_auth * {
-    xray_user {{ caddy_basic_auth.stdout }}
-  }
-  file_server browse
-{ % endif % }
-  log {
-    output file /var/lib/caddy/access.log {
-      roll_size 10mb
-      roll_keep 5
-  }
+  file_server
+{% endif %}
 }
-}
-http://{{ vless.domain }} {
+http://{{ domain }} {
   bind 0.0.0.0
   redir https://{host}{uri} permanent
+}
+:4123 {
+        tls internal
+        respond 204
+}
+:80 {
+        bind 0.0.0.0
+        respond 204
 }
