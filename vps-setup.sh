@@ -32,25 +32,6 @@ fi
 
 read -ep "Do you want to install marzban? [y/N] "$'\n' marzban_input
 
-read -ep "Which page do you want to use to hide:
-1) Custom page, you will provide link. (Not recomended)
-2) Confluence login page "$'\n' camo_page_input
-set +e
-if [[ ${camo_page_input} == "1" ]]; then
-  read -ep "Write a page you want to use to hide"$'\n' page_hide_input
-  export PAGE_CAMO=$(echo $page_hide_input | cut -d'/' -f3)
-  curl -sS -D - https://$page_hide_input -o /dev/null | grep x-frame-options
-  iframe_test=$(echo $?)
-  while [[ $iframe_test != "1" ]]; do
-    read -ep "This website seem to forbid iframe. Try another one"$'\n' page_hide_input
-    export PAGE_CAMO=$(echo $page_hide_input | cut -d'/' -f3)
-    curl -sS -D - https://$page_hide_input -o /dev/null | grep x-frame-options
-    iframe_test=$(echo $?)
-  done
-  read -ep "Write title for page. It will be displayed at tab name"$'\n' page_desc_input
-fi
-set -e
-
 read -ep "Do you want to configure server security? Do this on first run only. [y/N] "$'\n' configure_ssh_input
 if [[ ${configure_ssh_input,,} == "y" ]]; then
   # Read SSH port
@@ -83,6 +64,12 @@ else
     echo "Enabled BBR"
 fi
 
+yq_install() {
+  wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && chmod +x /usr/bin/yq
+}
+
+yq_install
+
 docker_install() {
   bash <(wget -qO- https://get.docker.com) @ -o get-docker.sh
 }
@@ -103,11 +90,6 @@ export XRAY_PBK=$(docker run --rm ghcr.io/xtls/xray-core x25519 -i $XRAY_PIK | t
 export XRAY_SID=$(openssl rand -hex 8)
 export XRAY_UUID=$(docker run --rm ghcr.io/xtls/xray-core uuid)
 export XRAY_CFG="/usr/local/etc/xray/config.json"
-if [[ ${camo_page_input} -eq 1 ]]; then
-  export PAGE_NAME="mask_page"
-else
-  export PAGE_NAME="confluence_page"
-fi
 
 # Install marzban
 xray_setup() {
@@ -118,7 +100,7 @@ xray_setup() {
     export MARZBAN_PATH=$(openssl rand -hex 8)
     export MARZBAN_SUB_PATH=$(openssl rand -hex 8)
     wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/compose | envsubst > ./docker-compose.yml
-    docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
+    yq eval \
     '.services.marzban.image = "gozargah/marzban:v0.8.4" |
      .services.marzban.restart = "always" |
      .services.marzban.env_file = "./marzban/.env" |
@@ -130,20 +112,20 @@ xray_setup() {
     mkdir -p marzban caddy
     wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/marzban | envsubst > ./marzban/.env
     mkdir -p /opt/xray-vps-setup/marzban/templates/home
-    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/$PAGE_NAME | envsubst > ./marzban/templates/home/index.html
+    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/confluence_page | envsubst > ./marzban/templates/home/index.html
     export CADDY_REVERSE="reverse_proxy * unix//run/marzban/marzban.socket"
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > ./caddy/Caddyfile
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > ./marzban/xray_config.json
   else
     wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/compose | envsubst > ./docker-compose.yml
     mkdir -p /opt/xray-vps-setup/caddy/templates
-    docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
-    '.services.xray.image = "ghcr.io/xtls/xray-core:sha-db934f0" | 
+    yq eval \
+    '.services.xray.image = "ghcr.io/xtls/xray-core:25.1.1" | 
     .services.xray.restart = "always" | 
     .services.xray.network_mode = "host" | 
     .services.caddy.volumes[3] = "./caddy/templates:/srv" |
     .services.xray.volumes[0] = "./xray:/etc/xray"' -i /workdir/docker-compose.yml
-    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/$PAGE_NAME | envsubst > ./caddy/templates/index.html
+    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/confluence_page | envsubst > ./caddy/templates/index.html
     export CADDY_REVERSE="root * /srv
     file_server"
     mkdir -p xray caddy
@@ -199,7 +181,6 @@ if [[ ${configure_ssh_input,,} == "y" ]]; then
   echo "New user for ssh: $SSH_USER, password for user: $SSH_USER_PASS. New port for SSH: $SSH_PORT."
 fi
 
-
 # WARP Install function
 warp_install() {
   apt install gpg -y
@@ -223,10 +204,10 @@ warp_install() {
     else
       export XRAY_CONFIG_WARP="/workdir/xray/config.json"
     fi
-    docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
+    yq eval \
     '.outbounds[.outbounds | length ] |= . + {"tag": "warp","protocol": "socks","settings": {"servers": [{"address": "127.0.0.1","port": 40000}]}}' \
     -i $XRAY_CONFIG_WARP
-    docker run --user root --rm -v ${PWD}:/workdir mikefarah/yq eval \
+    yq eval \
     '.routing.rules[.routing.rules | length ] |= . + {"outboundTag": "warp", "domain": ["geosite:category-ru"]}' \
     -i $XRAY_CONFIG_WARP
     docker compose -f /opt/xray-vps-setup/docker-compose.yml down && docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d

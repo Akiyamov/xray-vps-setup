@@ -17,7 +17,7 @@
     ]
   },
   "streamSettings": {
-    "network": "tcp",
+    "network": "raw",
     "security": "reality",
     "realitySettings": {
       "serverName": "$VLESS_DOMAIN",

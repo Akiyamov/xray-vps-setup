@@ -19,7 +19,7 @@
         "decryption": "none"
       },
       "streamSettings": {
-        "network": "tcp",
+        "network": "raw",
         "security": "reality",
         "realitySettings": {
           "xver": 1,
