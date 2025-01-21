@@ -336,6 +336,10 @@ warp-cli proxy port 40000
 warp-cli connect
 ```
 Если на этом этапе ловим ошибку подключения, то не продолжайте, WARP не рабоатет.  
+Установка `yq`:
+```bash
+wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && chmod +x /usr/bin/yq
+```
 Далее с помощью `yq` мы установим в уже существующий кофниг WARP:
 ```bash
 yq eval '.outbounds[.outbounds | length ] |= . + {"tag": "warp","protocol": "socks","settings": {"servers": [{"address": "127.0.0.1","port": 40000}]}}' -i $XRAY_CONFIG_WARP
