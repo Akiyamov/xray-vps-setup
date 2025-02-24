@@ -46,7 +46,7 @@ if [[ ${configure_ssh_input,,} == "y" ]]; then
   ssh-keygen -l -f ./test_pbk
   PBK_STATUS=$(echo $?)
   if [ "$PBK_STATUS" -eq 255 ]; then
-    echo "Can't verify public key. Try again and be sure to include 'ssh-rsa' or 'ssh-ed25519' and 'user@pcname' at the end of file"
+    echo "Can't verify the public key. Try again and make sure to include 'ssh-rsa' or 'ssh-ed25519' followed by 'user@pcname' at the end of the file."
     exit
   fi
   rm ./test_pbk
