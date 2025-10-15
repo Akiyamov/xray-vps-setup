@@ -222,34 +222,48 @@ warp_install() {
 }
 
 end_script() {
+  if [[ ${configure_warp_input,,} == "y" ]]; then
+    warp_install
+  fi
+  
   if [[ "${marzban_input,,}" == "y" ]]; then
     docker run -v /opt/xray-vps-setup/caddy/Caddyfile:/opt/xray-vps-setup/Caddyfile --rm caddy caddy fmt --overwrite /opt/xray-vps-setup/Caddyfile
     docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
-    clear
     if [[ ${configure_ssh_input,,} == "y" ]]; then
       echo "New user for ssh: $SSH_USER, password for user: $SSH_USER_PASS. New port for SSH: $SSH_PORT."
     fi
-    echo "Marzban location: https://$VLESS_DOMAIN/$MARZBAN_PATH . Marzban user: xray_admin, password: $MARZBAN_PASS"
+    final_msg="Marzban panel location: https://$VLESS_DOMAIN/$MARZBAN_PATH
+User: xray_admin
+Password: $MARZBAN_PASS
+    "
   else
     docker run -v /opt/xray-vps-setup/caddy/Caddyfile:/opt/xray-vps-setup/Caddyfile --rm caddy caddy fmt --overwrite /opt/xray-vps-setup/Caddyfile
     docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
-    clear
     if [[ ${configure_ssh_input,,} == "y" ]]; then
       echo "New user for ssh: $SSH_USER, password for user: $SSH_USER_PASS. New port for SSH: $SSH_PORT."
     fi
-    echo "Clipboard string format"
-    echo "vless://$XRAY_UUID@$VLESS_DOMAIN:443?type=tcp&security=reality&pbk=$XRAY_PBK&fp=chrome&sni=$VLESS_DOMAIN&sid=$XRAY_SID&spx=%2F&flow=xtls-rprx-vision" | envsubst
-    echo "XRay outbound config"
-    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray_outbound | envsubst 
-    echo "Sing-box outbound config"
-    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/sing_box_outbound | envsubst 
-    echo "Plain data"
-    echo "PBK: $XRAY_PBK, SID: $XRAY_SID, UUID: $XRAY_UUID"
+
+    xray_config=$(wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray_outbound" | envsubst)
+    singbox_config=$(wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/sing_box_outbound" | envsubst)
+
+    final_msg="Clipboard string format:
+vless://$XRAY_UUID@$VLESS_DOMAIN:443?type=tcp&security=reality&pbk=$XRAY_PBK&fp=chrome&sni=$VLESS_DOMAIN&sid=$XRAY_SID&spx=%2F&flow=xtls-rprx-vision
+
+XRay outbound config:
+$xray_config
+
+Sing-box outbound config:
+$singbox_config
+
+Plain data:
+PBK: $XRAY_PBK, SID: $XRAY_SID, UUID: $XRAY_UUID
+    "    
   fi
+
+  docker rmi ghcr.io/xtls/xray-core:latest caddy:latest
+  clear
+  echo "$final_msg"
 }
 
 end_script
 set +e
-if [[ ${configure_warp_input,,} == "y" ]]; then
-  warp_install
-fi
