@@ -1,6 +1,5 @@
 {
         https_port 4123
-        default_bind 127.0.0.1
         servers {
                 listener_wrappers {
                         proxy_protocol {

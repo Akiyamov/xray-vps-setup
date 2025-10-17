@@ -1,6 +1,5 @@
 {
   https_port 4123
-  default_bind 127.0.0.1
   servers {
     listener_wrappers {
       proxy_protocol {
@@ -12,7 +11,9 @@
   auto_https disable_redirects
 }
 https://{{ domain }} {
-{% if setup_variant == "marzban" %}
+{% if setup_variant == "pasarguard" %}
+  reverse_proxy * unix//run/pasarguard/pasarguard.socket
+{% elif setup_variant == "marzban" %}
   reverse_proxy * unix//run/marzban/marzban.socket
 {% else %}
   root * /srv

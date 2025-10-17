@@ -1,0 +1,28 @@
+services:
+  caddy:
+    image: caddy:2.9
+    container_name: caddy
+    restart: always
+    network_mode: host
+    volumes:
+      - ./caddy/data:/data
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./pasarguard_lib:/run/pasarguard
+  pasarguard-panel:
+    image: pasarguard/panel:v1.0.1
+    container_name: pasarguard-panel
+    restart: always
+    env_file: ./pasarguard/.env_panel
+    network_mode: host
+    volumes:
+      - ./pasarguard:/var/lib/pasarguard
+      - ./pasarguard/xray_config.json:/code/xray_config.json
+      - ./pasarguard/templates:/var/lib/pasarguard/templates
+  pasarguard-node:
+    container_name: pasarguard-node
+    image: pasarguard/node:v0.1.0
+    restart: always
+    network_mode: host
+    env_file: ./pasarguard/.env_node
+    volumes:
+      - ./pasarguard/node:/var/lib/pg-node
