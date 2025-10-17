@@ -2,8 +2,13 @@
 
 set -e
 
+# For development and testing, getting from env without not change in the code
+if [[ -z $GIT_USER ]]; then
+    GIT_USER="Akiyamov"
+fi
+
 export GIT_BRANCH="main"
-export GIT_REPO="CryZFix/xray-vps-setup"
+export GIT_REPO="$GIT_USER/xray-vps-setup"
 
 # Check if script started as root
 if [ "$EUID" -ne 0 ]; then
@@ -189,11 +194,7 @@ xray_setup() {
     cd /opt/xray-vps-setup
     if [[ "${panel_input,,}" == "pasarguard" ]]; then
         export PASARGUARD_PASS=$(
-            (
-                tr -dc A-Z </dev/urandom | head -c 2
-                tr -dc '!@#$%^&*' </dev/urandom | head -c 2
-                tr -dc 'A-Za-z0-9!@#$%^&*' </dev/urandom | head -c 9
-            ) | fold -w1 | shuf | tr -d '\n' | head -c 13
+            tr -dc A-Za-z0-9 </dev/urandom | head -c 13
             echo
         )
         export PASARGUARD_PATH=$(openssl rand -hex 8)
@@ -214,9 +215,9 @@ xray_setup() {
      .services.pasarguard_node.container_name = "pasarguard_node" |
      .services.pasarguard_node.restart = "always" |
      .services.pasarguard_node.env_file = "./pasarguard/.env_node" |
-     .services.pasarguard_node.network_mode = "host" |
+     .services.pasarguard_node.network_mode = "host" | 
      .services.pasarguard_node.volumes[0] = "./pasarguard/node:/var/lib/pg-node"' -i /opt/xray-vps-setup/docker-compose.yml
-        mkdir -p pasarguard/node caddy
+        mkdir -p pasarguard/node/certs caddy
         SSL_CERT_FILE="/opt/xray-vps-setup/pasarguard/node/certs/ssl_cert.pem"
         SSL_KEY_FILE="/opt/xray-vps-setup/pasarguard/node/certs/ssl_key.pem"
         gen_self_signed_cert
@@ -339,7 +340,9 @@ warp_install() {
         warp-cli mode proxy
         warp-cli proxy port 40000
         warp-cli connect
-        if [[ "${marzban_input,,}" == "y" ]]; then
+        if [[ "${panel_input,,}" == "pasarguard" ]]; then
+            export XRAY_CONFIG_WARP="/opt/xray-vps-setup/pasarguard/xray_config.json"
+        elif [[ "${panel_input,,}" == "marzban" ]]; then
             export XRAY_CONFIG_WARP="/opt/xray-vps-setup/marzban/xray_config.json"
         else
             export XRAY_CONFIG_WARP="/opt/xray-vps-setup/xray/config.json"
@@ -359,12 +362,16 @@ end_script() {
         warp_install
     fi
 
-    if [[ "${marzban_input,,}" == "y" ]]; then
+    if [[ "${panel_input,,}" == "pasarguard" ]]; then
         docker run -v /opt/xray-vps-setup/caddy/Caddyfile:/opt/xray-vps-setup/Caddyfile --rm caddy caddy fmt --overwrite /opt/xray-vps-setup/Caddyfile
         docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
-        if [[ ${configure_ssh_input,,} == "y" ]]; then
-            echo "New user for ssh: $SSH_USER, password for user: $SSH_USER_PASS. New port for SSH: $SSH_PORT."
-        fi
+        final_msg="PasarGuard panel location: https://$VLESS_DOMAIN/$PASARGUARD_PATH
+User: xray_admin
+Password: $PASARGUARD_PASS
+    "
+    elif [[ "${panel_input,,}" == "marzban" ]]; then
+        docker run -v /opt/xray-vps-setup/caddy/Caddyfile:/opt/xray-vps-setup/Caddyfile --rm caddy caddy fmt --overwrite /opt/xray-vps-setup/Caddyfile
+        docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
         final_msg="Marzban panel location: https://$VLESS_DOMAIN/$MARZBAN_PATH
 User: xray_admin
 Password: $MARZBAN_PASS
@@ -395,6 +402,9 @@ PBK: $XRAY_PBK, SID: $XRAY_SID, UUID: $XRAY_UUID
 
     docker rmi ghcr.io/xtls/xray-core:latest caddy:latest
     clear
+    if [[ ${configure_ssh_input,,} == "y" ]]; then
+        echo "New user for ssh: $SSH_USER, password for user: $SSH_USER_PASS. New port for SSH: $SSH_PORT."
+    fi
     echo "$final_msg"
 }
 

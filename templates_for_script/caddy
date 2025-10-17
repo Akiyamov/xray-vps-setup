@@ -1,16 +1,5 @@
-{
-        https_port 4123
-        servers {
-                listener_wrappers {
-                        proxy_protocol {
-                                allow 127.0.0.1/32
-                        }
-                        tls
-                }
-        }
-        auto_https disable_redirects
-}
 https://$VLESS_DOMAIN {
+        bind 0.0.0.0
         $CADDY_REVERSE
 }
 http://$VLESS_DOMAIN {
@@ -18,6 +7,7 @@ http://$VLESS_DOMAIN {
         redir https://$VLESS_DOMAIN{uri} permanent
 }
 :4123 {
+        bind 127.0.0.1
         tls internal
         respond 204
 }

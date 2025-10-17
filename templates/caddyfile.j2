@@ -1,16 +1,5 @@
-{
-  https_port 4123
-  servers {
-    listener_wrappers {
-      proxy_protocol {
-        allow 127.0.0.1/32
-      }
-      tls
-    }
-  }
-  auto_https disable_redirects
-}
 https://{{ domain }} {
+    bind 0.0.0.0
 {% if setup_variant == "pasarguard" %}
   reverse_proxy * unix//run/pasarguard/pasarguard.socket
 {% elif setup_variant == "marzban" %}
@@ -25,6 +14,7 @@ http://{{ domain }} {
   redir https://{host}{uri} permanent
 }
 :4123 {
+        bind 127.0.0.1
         tls internal
         respond 204
 }

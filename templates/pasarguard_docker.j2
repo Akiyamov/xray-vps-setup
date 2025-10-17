@@ -15,7 +15,7 @@ services:
     env_file: ./pasarguard/.env_panel
     network_mode: host
     volumes:
-      - ./pasarguard:/var/lib/pasarguard
+      - ./pasarguard_lib:/var/lib/pasarguard
       - ./pasarguard/xray_config.json:/code/xray_config.json
       - ./pasarguard/templates:/var/lib/pasarguard/templates
   pasarguard-node:
