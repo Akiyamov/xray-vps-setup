@@ -1,9 +1,33 @@
+{
+    servers {
+        protocols h1 h2
+        listener_wrappers {
+            proxy_protocol {
+                allow 127.0.0.1/32
+            }
+            tls
+        }
+    }
+    auto_https disable_redirects
+}
 https://{{ domain }} {
     bind 0.0.0.0
 {% if setup_variant == "pasarguard" %}
-  reverse_proxy * unix//run/pasarguard/pasarguard.socket
+  reverse_proxy * unix//run/pasarguard/pasarguard.socket {
+        header_down -Server
+    }
+
+    handle_errors {
+        respond "{err.status_code} {err.status_text}"
+    }
 {% elif setup_variant == "marzban" %}
-  reverse_proxy * unix//run/marzban/marzban.socket
+  reverse_proxy * unix//run/marzban/marzban.socket {
+        header_down -Server
+    }
+
+    handle_errors {
+        respond "{err.status_code} {err.status_text}"
+    }
 {% else %}
   root * /srv
   file_server

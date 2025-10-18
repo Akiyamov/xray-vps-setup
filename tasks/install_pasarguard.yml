@@ -9,6 +9,11 @@
     - name: Generate pasarguard password
       set_fact:
         PASARGUARD_SUB_PATH: "{{ lookup('password', '/dev/null length=8 chars=ascii_letters') }}"
+- name: Update install sqlite3
+  ansible.builtin.apt:
+    name: sqlite3
+    state: latest
+    update_cache: true
 - name: Create dirs
   file:
     path: "{{ item }}"

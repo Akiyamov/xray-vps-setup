@@ -20,6 +20,54 @@ fi
 NODE_IP_V4=$(curl -s -4 --fail --max-time 5 ifconfig.io 2>/dev/null || echo "")
 NODE_IP_V6=$(curl -s -6 --fail --max-time 5 ifconfig.io 2>/dev/null || echo "")
 
+pasarguard_auto_configuring() {
+    CREATED_AT=$(date +"%Y-%m-%d %H:%M:%S.%6N")
+    HASHED_PASS=$(docker run --rm epicsoft/bcrypt hash $PASARGUARD_PASS 12 2>/dev/null | tail -n1)
+    SOCKET_PATH="/opt/xray-vps-setup/pasarguard_lib/pasarguard.socket"
+    DATABASE_PATH="/opt/xray-vps-setup/pasarguard_lib/db.sqlite3"
+    TIMEOUT=60
+    INTERVAL=1
+
+    apt install -y sqlite3 socat
+    i=0
+    echo "⏳ Waiting for the PasarGuard socket to be ready..."
+    while [ $i -lt $TIMEOUT ]; do
+        if timeout 1 socat -v UNIX-CONNECT:"$SOCKET_PATH" /dev/null >/dev/null 2>&1; then
+            echo "✅ The PasarGuard socket is ready, the setup continues."
+            socket_ready=true
+            break
+        fi
+        sleep $INTERVAL
+        i=$((i + INTERVAL))
+    done
+    if [ $socket_ready == false ]; then
+        echo "❌ The PasarGuard socket is not running."
+        exit 1
+    fi
+
+    xray_cfg=$(cat /opt/xray-vps-setup/pasarguard/xray_config.json)
+    SSL_CA=$(cat $SSL_CERT_FILE)
+    SAFE_JSON="${xray_cfg//\'/''}"
+    sqlite3 "$DATABASE_PATH" <<SQL
+    BEGIN;
+    UPDATE core_configs SET config = '$SAFE_JSON' WHERE id = 1;
+    INSERT INTO admins (username, hashed_password, created_at, is_sudo)
+        VALUES ('xray_admin', '$HASHED_PASS', '$CREATED_AT', 1);
+    UPDATE inbounds SET tag = 'VLESS TCP VISION REALITY' WHERE id = 1;
+    INSERT INTO hosts (remark, address, inbound_tag, security, alpn, is_disabled, priority, status)
+        VALUES ('{USERNAME}', '$VLESS_DOMAIN,$SERVER_IP', 'VLESS TCP VISION REALITY', 'inbound_default', 'h2,http/1.1', '0', '0', 'active');
+    INSERT INTO groups (name, is_disabled) VALUES ('VLESS', '0');
+    INSERT INTO inbounds_groups_association (inbound_id, group_id) VALUES ('1', '1');
+    INSERT INTO nodes (name, address, port, status, created_at, uplink, downlink, connection_type, server_ca, core_config_id, api_key)
+        VALUES ('Local', '127.0.0.1', '62050', 'connecting', '$CREATED_AT', '0', '0', 'grpc', '$SSL_CA', '1', '$PASARGUARD_NODE_API_KEY');
+    UPDATE settings SET general = '{"default_flow": "xtls-rprx-vision", "default_method": "chacha20-ietf-poly1305"}';
+    COMMIT;
+SQL
+
+    docker rmi epicsoft/bcrypt
+    docker compose -f /opt/xray-vps-setup/docker-compose.yml restart
+}
+
 gen_self_signed_cert() {
     local san_entries=("DNS:localhost" "IP:127.0.0.1")
 
@@ -51,7 +99,7 @@ gen_self_signed_cert() {
 
 # Install idn
 apt-get update
-apt-get install idn sudo -y
+apt-get install idn dnsutils sudo -y
 
 # Read domain input
 read -ep "Enter your domain:"$'\n' input_domain
@@ -225,7 +273,13 @@ xray_setup() {
         wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/pasarguard_node | envsubst >./pasarguard/.env_node
         mkdir -p /opt/xray-vps-setup/pasarguard/templates/home
         wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/confluence_page | envsubst >./pasarguard/templates/home/index.html
-        export CADDY_REVERSE="reverse_proxy * unix//run/pasarguard/pasarguard.socket"
+        export CADDY_REVERSE="reverse_proxy * unix//run/pasarguard/pasarguard.socket {
+        header_down -Server
+    }
+    
+    handle_errors {
+        respond \"{err.status_code} {err.status_text}\"
+    }"
         wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst >./caddy/Caddyfile
         wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst >./pasarguard/xray_config.json
     elif [[ "${panel_input,,}" == "marzban" ]]; then
@@ -250,7 +304,13 @@ xray_setup() {
         wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/marzban | envsubst >./marzban/.env
         mkdir -p /opt/xray-vps-setup/marzban/templates/home
         wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/confluence_page | envsubst >./marzban/templates/home/index.html
-        export CADDY_REVERSE="reverse_proxy * unix//run/marzban/marzban.socket"
+        export CADDY_REVERSE="reverse_proxy * unix//run/marzban/marzban.socket {
+        header_down -Server
+    }
+
+    handle_errors {
+        respond \"{err.status_code} {err.status_text}\"
+    }"
         wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst >./caddy/Caddyfile
         wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst >./marzban/xray_config.json
     else
@@ -365,6 +425,7 @@ end_script() {
     if [[ "${panel_input,,}" == "pasarguard" ]]; then
         docker run -v /opt/xray-vps-setup/caddy/Caddyfile:/opt/xray-vps-setup/Caddyfile --rm caddy caddy fmt --overwrite /opt/xray-vps-setup/Caddyfile
         docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
+        pasarguard_auto_configuring
         final_msg="PasarGuard panel location: https://$VLESS_DOMAIN/$PASARGUARD_PATH
 User: xray_admin
 Password: $PASARGUARD_PASS
@@ -377,12 +438,11 @@ User: xray_admin
 Password: $MARZBAN_PASS
     "
     else
+        apt install -y qrencode
         docker run -v /opt/xray-vps-setup/caddy/Caddyfile:/opt/xray-vps-setup/Caddyfile --rm caddy caddy fmt --overwrite /opt/xray-vps-setup/Caddyfile
         docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
-        if [[ ${configure_ssh_input,,} == "y" ]]; then
-            echo "New user for ssh: $SSH_USER, password for user: $SSH_USER_PASS. New port for SSH: $SSH_PORT."
-        fi
 
+        vless_qr=$(qrencode -t UTF8 -o - "vless://$XRAY_UUID@$VLESS_DOMAIN:443?type=tcp&security=reality&pbk=$XRAY_PBK&fp=chrome&sni=$VLESS_DOMAIN&sid=$XRAY_SID&spx=%2F&flow=xtls-rprx-vision")
         xray_config=$(wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray_outbound" | envsubst)
         singbox_config=$(wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/sing_box_outbound" | envsubst)
 
@@ -397,6 +457,11 @@ $singbox_config
 
 Plain data:
 PBK: $XRAY_PBK, SID: $XRAY_SID, UUID: $XRAY_UUID
+
+VLESS QR Code:
+
+$vless_qr
+
     "
     fi
 
