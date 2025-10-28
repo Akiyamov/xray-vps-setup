@@ -13,10 +13,29 @@
 }
 https://$VLESS_DOMAIN {
         $CADDY_REVERSE
+
+        header  {
+                -Server
+        }
+        handle_errors {
+                header {
+                        -Server
+                }
+        }
 }
 http://$VLESS_DOMAIN {
         bind 0.0.0.0
         redir https://$VLESS_DOMAIN{uri} permanent
+
+        header {
+                -Server
+        }
+
+        handle_errors {
+                header {
+                        -Server
+                }
+        }
 }
 :4123 {
         tls internal
