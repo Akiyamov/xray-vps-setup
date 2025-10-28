@@ -18,10 +18,27 @@ https://{{ domain }} {
   root * /srv
   file_server
 {% endif %}
+  header {
+    -Server
+  }
+  handle_errors {
+    header {
+      -Server
+    }
+  }
 }
 http://{{ domain }} {
   bind 0.0.0.0
   redir https://{host}{uri} permanent
+
+  header {
+    -Server
+  }
+  handle_errors {
+    header {
+      -Server
+    }
+  }
 }
 :4123 {
         tls internal
