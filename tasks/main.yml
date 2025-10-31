@@ -19,11 +19,11 @@
   when: configure_security|default(false)|bool == true
 - name: Generate values
   block:
-    - name: Generate x25519 PIK 
+    - name: Generate x25519 PIK
       shell:
         cmd: docker run --rm ghcr.io/xtls/xray-core x25519 | head -n1 | cut -d' ' -f 3
       register: x25519_pik
-    - name: Generate x25519 PBK 
+    - name: Generate x25519 PBK
       shell:
         cmd: docker run --rm ghcr.io/xtls/xray-core x25519 -i {{ x25519_pik.stdout }} | tail -1 | cut -d' ' -f 3
       register: x25519_pbk
@@ -35,6 +35,9 @@
       shell:
         cmd: docker run --rm ghcr.io/xtls/xray-core uuid
       register: xray_uuid
+- name: Install pasarguard
+  include_tasks: install_pasarguard.yml
+  when: setup_variant == "pasarguard"
 - name: Install marzban
   include_tasks: install_marzban.yml
   when: setup_variant == "marzban"
@@ -48,7 +51,7 @@
   community.docker.docker_compose_v2:
     project_src: /opt/xray-vps-setup
     files:
-    - docker-compose.yml
+      - docker-compose.yml
 - name: End xray
   include_tasks: end_xray.yml
   when: setup_variant == "xray"
