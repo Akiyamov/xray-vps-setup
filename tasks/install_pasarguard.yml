@@ -1,0 +1,53 @@
+- name: Generate pasarguard specific values
+  block:
+    - name: Generate pasarguard password
+      set_fact:
+        PASARGUARD_PASS: "{{ lookup('password', '/dev/null length=13 chars=ascii_letters') }}"
+    - name: Generate pasarguard password
+      set_fact:
+        PASARGUARD_PATH: "{{ lookup('password', '/dev/null length=8 chars=ascii_letters') }}"
+    - name: Generate pasarguard password
+      set_fact:
+        PASARGUARD_SUB_PATH: "{{ lookup('password', '/dev/null length=8 chars=ascii_letters') }}"
+- name: Update install sqlite3
+  ansible.builtin.apt:
+    name: sqlite3
+    state: latest
+    update_cache: true
+- name: Create dirs
+  file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - /opt/xray-vps-setup/caddy
+    - /opt/xray-vps-setup/pasarguard
+    - /opt/xray-vps-setup/pasarguard/node
+    - /opt/xray-vps-setup/pasarguard/templates/home
+- name: Copy config files
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  loop:
+    - { src: "caddyfile.j2", dest: "/opt/xray-vps-setup/caddy/Caddyfile" }
+    - {
+        src: "xray.json.j2",
+        dest: "/opt/xray-vps-setup/pasarguard/xray_config.json",
+      }
+    - {
+        src: "pasarguard.j2",
+        dest: "/opt/xray-vps-setup/pasarguard/.env_panel",
+      }
+    - {
+        src: "pasarguard_node.j2",
+        dest: "/opt/xray-vps-setup/pasarguard/.env_node",
+      }
+    - {
+        src: "confluence.j2",
+        dest: "/opt/xray-vps-setup/pasarguard/templates/home/index.html",
+      }
+    - {
+        src: "pasarguard_docker.j2",
+        dest: "/opt/xray-vps-setup/docker-compose.yml",
+      }
+- debug:
+    msg: "pasarguard password: {{ PASARGUARD_PASS }}, pasarguard path: {{ PASARGUARD_PATH }}"

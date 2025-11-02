@@ -1,28 +1,29 @@
 {
-        https_port 4123
-        default_bind 127.0.0.1
-        servers {
-                listener_wrappers {
-                        proxy_protocol {
-                                allow 127.0.0.1/32
-                        }
-                        tls
-                }
+    servers {
+        protocols h1 h2
+        listener_wrappers {
+            proxy_protocol {
+                allow 127.0.0.1/32
+            }
+            tls
         }
-        auto_https disable_redirects
+    }
+    auto_https disable_redirects
 }
 https://$VLESS_DOMAIN {
-        $CADDY_REVERSE
+    bind 0.0.0.0
+    $CADDY_REVERSE
 }
 http://$VLESS_DOMAIN {
-        bind 0.0.0.0
-        redir https://$VLESS_DOMAIN{uri} permanent
+    bind 0.0.0.0
+    redir https://$VLESS_DOMAIN{uri} permanent
 }
 :4123 {
-        tls internal
-        respond 204
+    bind 127.0.0.1
+    tls internal
+    respond 204
 }
 :80 {
-        bind 0.0.0.0
-        respond 204
+    bind 0.0.0.0
+    respond 204
 }

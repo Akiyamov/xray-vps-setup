@@ -42,10 +42,27 @@
           - -i
           - /opt/xray-vps-setup/xray/config.json
   when: setup_variant == "xray"
+- name: Edit pasarguard config
+  block:
+    - command:
+        argv:
+          - yq
+          - eval
+          - '.outbounds += {"tag": "warp","protocol": "socks","settings": {"servers": [{"address": "127.0.0.1","port": 40000}]}}'
+          - -i
+          - /opt/xray-vps-setup/pasarguard/xray_config.json
+    - command:
+        argv:
+          - yq
+          - eval
+          - '.routing.rules += {"outboundTag": "warp", "domain": ["geosite:category-ru", "regexp:.*\\.xn--$", "regexp:.*\\.ru$", "regexp:.*\\.su$"]}'
+          - -i
+          - /opt/xray-vps-setup/pasarguard/xray_config.json
+  when: setup_variant == "pasarguard"
 - name: Edit marzban config
   block:
     - command:
-        argv: 
+        argv:
           - yq
           - eval
           - '.outbounds += {"tag": "warp","protocol": "socks","settings": {"servers": [{"address": "127.0.0.1","port": 40000}]}}'
