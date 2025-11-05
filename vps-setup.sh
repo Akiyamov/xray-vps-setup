@@ -28,7 +28,7 @@ pasarguard_auto_configuring() {
     TIMEOUT=60
     INTERVAL=1
 
-    apt install -y sqlite3 socat
+    apt-get install -y sqlite3 socat
     i=0
     echo "⏳ Waiting for the PasarGuard socket to be ready..."
     while [ $i -lt $TIMEOUT ]; do
@@ -384,12 +384,12 @@ fi
 
 # WARP Install function
 warp_install() {
-    apt install gpg -y
+    apt-get update && apt-get install gnupg2 -y
     echo "If this fails then warp won't be added to routing and everything will work without it"
     curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
     echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/cloudflare-client.list
-    apt update
-    apt install cloudflare-warp -y
+    apt-get update
+    apt-get install cloudflare-warp -y
 
     echo "y" | warp-cli registration new
     export TRY_WARP=$(echo $?)
@@ -438,7 +438,7 @@ User: xray_admin
 Password: $MARZBAN_PASS
     "
     else
-        apt install -y qrencode
+        apt-get install -y qrencode
         docker run -v /opt/xray-vps-setup/caddy/Caddyfile:/opt/xray-vps-setup/Caddyfile --rm caddy caddy fmt --overwrite /opt/xray-vps-setup/Caddyfile
         docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
 
