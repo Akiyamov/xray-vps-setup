@@ -273,13 +273,7 @@ xray_setup() {
         wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/pasarguard_node | envsubst >./pasarguard/.env_node
         mkdir -p /opt/xray-vps-setup/pasarguard/templates/home
         wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/confluence_page | envsubst >./pasarguard/templates/home/index.html
-        export CADDY_REVERSE="reverse_proxy * unix//run/pasarguard/pasarguard.socket {
-        header_down -Server
-    }
-    
-    handle_errors {
-        respond \"{err.status_code} {err.status_text}\"
-    }"
+        export CADDY_REVERSE="reverse_proxy * unix//run/pasarguard/pasarguard.socket"
         wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst >./caddy/Caddyfile
         wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst >./pasarguard/xray_config.json
     elif [[ "${panel_input,,}" == "marzban" ]]; then
@@ -304,13 +298,7 @@ xray_setup() {
         wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/marzban | envsubst >./marzban/.env
         mkdir -p /opt/xray-vps-setup/marzban/templates/home
         wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/confluence_page | envsubst >./marzban/templates/home/index.html
-        export CADDY_REVERSE="reverse_proxy * unix//run/marzban/marzban.socket {
-        header_down -Server
-    }
-
-    handle_errors {
-        respond \"{err.status_code} {err.status_text}\"
-    }"
+        export CADDY_REVERSE="reverse_proxy * unix//run/marzban/marzban.socket"
         wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst >./caddy/Caddyfile
         wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst >./marzban/xray_config.json
     else

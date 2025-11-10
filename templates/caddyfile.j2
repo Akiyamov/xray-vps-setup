@@ -13,21 +13,9 @@
 https://{{ domain }} {
     bind 0.0.0.0
 {% if setup_variant == "pasarguard" %}
-  reverse_proxy * unix//run/pasarguard/pasarguard.socket {
-        header_down -Server
-    }
-
-    handle_errors {
-        respond "{err.status_code} {err.status_text}"
-    }
+  reverse_proxy * unix//run/pasarguard/pasarguard.socket
 {% elif setup_variant == "marzban" %}
-  reverse_proxy * unix//run/marzban/marzban.socket {
-        header_down -Server
-    }
-
-    handle_errors {
-        respond "{err.status_code} {err.status_text}"
-    }
+  reverse_proxy * unix//run/marzban/marzban.socket 
 {% else %}
   root * /srv
   file_server
