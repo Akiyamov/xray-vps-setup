@@ -58,7 +58,26 @@ else
   fi
 fi
 
-read -ep "Do you want to install marzban? [y/N] "$'\n' marzban_input
+echo "Choose panel to install:"
+echo "1) No panel (Xray only)"
+echo "2) Marzban"
+echo "3) Remnawave"
+read -ep "Enter choice [1/2/3]: "$'\n' panel_choice
+
+case $panel_choice in
+  2)
+    marzban_input="y"
+    remnawave_input="n"
+    ;;
+  3)
+    marzban_input="n"
+    remnawave_input="y"
+    ;;
+  *)
+    marzban_input="n"
+    remnawave_input="n"
+    ;;
+esac
 
 read -ep "Do you want to configure server security? Do this on first run only. [y/N] "$'\n' configure_ssh_input
 if [[ ${configure_ssh_input,,} == "y" ]]; then
@@ -176,6 +195,60 @@ xray_setup() {
 
 xray_setup
 
+# Call Remnawave setup if selected
+if [[ ${remnawave_input,,} == "y" ]]; then
+  remnawave_setup
+fi
+
+# Install Remnawave
+remnawave_setup() {
+  # First setup Remnawave panel
+  mkdir -p /opt/remnawave
+  cd /opt/remnawave
+
+  # Download docker-compose and .env files
+  curl -o docker-compose.yml https://raw.githubusercontent.com/remnawave/backend/refs/heads/main/docker-compose-prod.yml
+  curl -o .env https://raw.githubusercontent.com/remnawave/backend/refs/heads/main/.env.sample
+
+  # Generate secure secrets
+  sed -i "s/^JWT_AUTH_SECRET=.*/JWT_AUTH_SECRET=$(openssl rand -hex 64)/" .env
+  sed -i "s/^JWT_API_TOKENS_SECRET=.*/JWT_API_TOKENS_SECRET=$(openssl rand -hex 64)/" .env
+  sed -i "s/^METRICS_PASS=.*/METRICS_PASS=$(openssl rand -hex 64)/" .env
+  sed -i "s/^WEBHOOK_SECRET_HEADER=.*/WEBHOOK_SECRET_HEADER=$(openssl rand -hex 64)/" .env
+
+  # Generate and set database password
+  export REMNAWAVE_DB_PASS=$(openssl rand -hex 24)
+  sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$REMNAWAVE_DB_PASS/" .env
+  sed -i "s|^\\(DATABASE_URL=\\\"postgresql://postgres:\\)[^\\@]*\\(@.*\\)|\\1$REMNAWAVE_DB_PASS\\2|" .env
+
+  # Set domain configuration
+  sed -i "s|^FRONT_END_DOMAIN=.*|FRONT_END_DOMAIN=$VLESS_DOMAIN|" .env
+  sed -i "s|^SUB_PUBLIC_DOMAIN=.*|SUB_PUBLIC_DOMAIN=$VLESS_DOMAIN/api/sub|" .env
+
+  # Disable docs in production
+  sed -i "s/^IS_DOCS_ENABLED=.*/IS_DOCS_ENABLED=false/" .env
+
+  # Start Remnawave services
+  docker compose up -d
+
+  # Now setup Caddy reverse proxy in /opt/xray-vps-setup
+  cd /opt/xray-vps-setup
+
+  # Create minimal docker-compose for Caddy only
+  wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/compose | envsubst > ./docker-compose.yml
+
+  # Remove xray service, keep only caddy
+  yq eval 'del(.services.xray)' -i ./docker-compose.yml
+
+  mkdir -p caddy
+  export CADDY_REVERSE="reverse_proxy localhost:3000"
+  wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > ./caddy/Caddyfile
+
+  # Wait for Remnawave services to be healthy
+  echo "Waiting for Remnawave services to start..."
+  sleep 10
+}
+
 sshd_edit() {
   grep -r Port /etc/ssh -l | xargs -n 1 sed -i -e "/Port /c\Port $SSH_PORT"
   grep -r PasswordAuthentication /etc/ssh -l | xargs -n 1 sed -i -e "/PasswordAuthentication /c\PasswordAuthentication no"
@@ -259,8 +332,29 @@ end_script() {
   if [[ ${configure_warp_input,,} == "y" ]]; then
     warp_install
   fi
-  
-  if [[ "${marzban_input,,}" == "y" ]]; then
+
+  if [[ "${remnawave_input,,}" == "y" ]]; then
+    docker run -v /opt/xray-vps-setup/caddy/Caddyfile:/opt/xray-vps-setup/Caddyfile --rm caddy caddy fmt --overwrite /opt/xray-vps-setup/Caddyfile
+    docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
+
+    final_msg="Remnawave panel location: https://$VLESS_DOMAIN
+
+⚠️  IMPORTANT: You need to complete the setup:
+1. Access the panel at: https://$VLESS_DOMAIN
+2. Complete the initial setup wizard
+3. Create your admin account
+4. Configure nodes if needed
+
+Database password (save this): $REMNAWAVE_DB_PASS
+
+For credentials and logs, check:
+- Credentials: /opt/remnawave/.env
+- Logs: docker compose -f /opt/remnawave/docker-compose.yml logs -f
+    "
+    if [[ ${configure_ssh_input,,} == "y" ]]; then
+      echo "New user for ssh: $SSH_USER, password for user: $SSH_USER_PASS. New port for SSH: $SSH_PORT."
+    fi
+  elif [[ "${marzban_input,,}" == "y" ]]; then
     docker run -v /opt/xray-vps-setup/caddy/Caddyfile:/opt/xray-vps-setup/Caddyfile --rm caddy caddy fmt --overwrite /opt/xray-vps-setup/Caddyfile
     docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
 
