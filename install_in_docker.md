@@ -109,7 +109,7 @@ services:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile
       - ./marzban_lib:/run/marzban
   marzban:
-    image: gozargah/marzban:v0.8.4
+    image: gozargah/marzban:latest
     restart: always
     env_file: ./marzban/.env
     network_mode: host
@@ -133,7 +133,7 @@ services:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile
       - ./caddy/templates:/srv
   xray:
-    image: ghcr.io/xtls/xray-core:25.1.1
+    image: ghcr.io/xtls/xray-core:latest
     restart: always
     network_mode: host
     volumes:
