@@ -217,8 +217,8 @@ edit_iptables() {
 }
 
 if [[ ${configure_ssh_input,,} == "y" ]]; then
-  sshd_edit
   add_user
+  sshd_edit
   edit_iptables
 fi
 
