@@ -1,0 +1,22 @@
+services:
+  angie:
+    image: docker.angie.software/angie:minimal
+    container_name: angie
+    restart: always
+    network_mode: host
+    volumes:
+      - angie-data:/var/lib/angie
+      - ./angie.conf:/etc/angie/angie.conf
+  xray:
+    image: ghcr.io/xtls/xray-core:latest
+    container_name: xray
+    restart: always
+    network_mode: host
+    volumes:
+      - ./xray:/etc/xray
+
+volumes:
+    angie-data:
+        driver: local
+        external: false
+        name: angie-data
