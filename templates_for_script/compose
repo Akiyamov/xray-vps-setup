@@ -1,9 +1,0 @@
-services:
-  caddy:
-    image: caddy:2.9
-    container_name: caddy
-    restart: always
-    network_mode: host
-    volumes:
-      - ./caddy/data:/data
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
