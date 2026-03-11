@@ -1,36 +1,28 @@
 ---
 - name: Populate service facts
   ansible.builtin.service_facts:
-- name: Enable BBR
-  include_tasks: bbr.yml
+- name: Get the current SSH listening port
+  shell: "ss -tlnp | grep sshd | grep -Po '(?<=:)\\d+(?= )' | head -n 1"
+  register: ssh_port_output
+  changed_when: false
+- name: Set SSH_PORT variable
+  set_fact:
+    SSH_PORT: "{{ ssh_port_output.stdout | default('22') | trim }}"
 - name: Install docker
   include_tasks: install_docker.yml
   when: ansible_facts.services['docker'] is undefined
 - name: Install/update yq
   include_tasks: install_yq.yml
-- name: Security block
-  block:
-    - name: Edit SSHD config
-      include_tasks: ssh.yml
-    - name: Edit iptables
-      include_tasks: iptables.yml
-    - name: Add user
-      include_tasks: user.yml
-  when: configure_security|default(false)|bool == true
 - name: Generate values
   block:
     - name: Generate x25519 PIK 
       shell:
-        cmd: docker run --rm ghcr.io/xtls/xray-core x25519 | head -n1 | cut -d' ' -f 3
+        cmd: docker run --rm ghcr.io/xtls/xray-core x25519 | head -n1 | cut -d' ' -f 2
       register: x25519_pik
     - name: Generate x25519 PBK 
       shell:
-        cmd: docker run --rm ghcr.io/xtls/xray-core x25519 -i {{ x25519_pik.stdout }} | tail -1 | cut -d' ' -f 3
+        cmd: docker run --rm ghcr.io/xtls/xray-core x25519 -i {{ x25519_pik.stdout }} | tail -2 | head -1 | cut -d' ' -f 2
       register: x25519_pbk
-    - name: Generate SID
-      shell:
-        cmd: openssl rand -hex 8
-      register: short_id
     - name: Generate default user
       shell:
         cmd: docker run --rm ghcr.io/xtls/xray-core uuid

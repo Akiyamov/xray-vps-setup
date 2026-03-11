@@ -1,0 +1,38 @@
+services:
+  angie:
+    image: docker.angie.software/angie:minimal
+    container_name: angie
+    restart: always
+    network_mode: host
+    volumes:
+      - angie-data:/var/lib/angie
+      - ./angie.conf:/etc/angie/angie.conf
+      - ./index.html:/tmp/index.html
+{% if setup_variant == "marzban" %}
+  marzban:
+    image: gozargah/marzban:latest
+    container_name: marzban
+    restart: always
+    env_file: ./marzban/.env
+    network_mode: host
+    volumes:
+      - ./marzban/xray_config.json:/code/xray_config.json
+      - ./marzban/xray-core:/var/lib/marzban/xray-core
+      - ./marzban_lib:/var/lib/marzban
+{% else %}
+  xray:
+    image: ghcr.io/xtls/xray-core:latest
+    container_name: xray
+    restart: always
+    network_mode: host
+    user: root
+    volumes:
+      - ./xray:/etc/xray
+    command: ["xray", "-config", "/etc/xray/config.json"]
+{% endif %}
+
+volumes:
+    angie-data:
+        driver: local
+        external: false
+        name: angie-data

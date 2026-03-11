@@ -13,7 +13,7 @@ fi
 
 # Install idn 
 apt-get update
-apt-get install idn sudo dnsutils -y 
+apt-get install idn sudo dnsutils wamerican -y 
 
 # Read domain input
 read -ep "Enter your domain:"$'\n' input_domain
@@ -26,7 +26,7 @@ RESOLVED_IP=$(dig +short $VLESS_DOMAIN | tail -n1)
 
 if [ -z "$RESOLVED_IP" ]; then
   echo "Warning: Domain has no DNS record"
-  read -ep "Are you sure? That domain has no DNS record. If you didn't add that you will have to restart xray and caddy by yourself [y/N]"$'\n' prompt_response
+  read -ep "Are you sure? That domain has no DNS record. If you didn't add that you will have to restart xray and angie by yourself [y/N]"$'\n' prompt_response
   if [[ "$prompt_response" =~ ^([yY])$ ]]; then
     echo "Ok, proceeding without DNS verification"
   else 
@@ -58,9 +58,9 @@ else
   fi
 fi
 
-read -ep "Do you want to install marzban? [y/N] "$'\n' marzban_input
+read -ep "Do you want to install marzban? Consider marzban half deprecated. [y/N] "$'\n' marzban_input
 
-read -ep "Do you want to configure server security? Do this on first run only. [y/N] "$'\n' configure_ssh_input
+read -ep "Do you want to create a user to connect to server as non-root and forbid root access? Do this on first run only. [y/N] "$'\n' configure_ssh_input
 if [[ ${configure_ssh_input,,} == "y" ]]; then
   # Read SSH port
   read -ep "Enter SSH port. Default 22, can't use ports: 80, 443 and 4123:"$'\n' input_ssh_port
@@ -115,71 +115,48 @@ if ! command -v docker 2>&1 >/dev/null; then
 fi
 
 # Generate values for XRay
-export SSH_USER=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8; echo)
+export SSH_USER=$(grep -E '^[a-z]{4,6}$' /usr/share/dict/words | shuf -n 1)
 export SSH_USER_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13; echo)
 export SSH_PORT=${input_ssh_port:-22}
-export ROOT_LOGIN="yes"
-export IP_CADDY=$(hostname -I | cut -d' ' -f1)
-export CADDY_BASIC_AUTH=$(docker run --rm caddy caddy hash-password --plaintext $SSH_USER_PASS)
 export XRAY_PIK=$(docker run --rm ghcr.io/xtls/xray-core x25519 | head -n1 | cut -d' ' -f 2)
 export XRAY_PBK=$(docker run --rm ghcr.io/xtls/xray-core x25519 -i $XRAY_PIK | tail -2 | head -1 | cut -d' ' -f 2)
-export XRAY_SID=$(openssl rand -hex 8)
 export XRAY_UUID=$(docker run --rm ghcr.io/xtls/xray-core uuid)
-export XRAY_CFG="/usr/local/etc/xray/config.json"
 
 # Install marzban
 xray_setup() {
   mkdir -p /opt/xray-vps-setup
   cd /opt/xray-vps-setup
+  wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/confluence" | envsubst > ./index.html
   if [[ "${marzban_input,,}" == "y" ]]; then
+    apt install zip unzip -y 
+    mkdir -p /opt/xray-vps-setup/marzban
+    export MARZBAN_USER=$(grep -E '^[a-z]{4,6}$' /usr/share/dict/words | shuf -n 1)
     export MARZBAN_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13; echo)
     export MARZBAN_PATH=$(openssl rand -hex 8)
     export MARZBAN_SUB_PATH=$(openssl rand -hex 8)
-    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/compose | envsubst > ./docker-compose.yml
-    yq eval \
-    '.services.marzban.image = "gozargah/marzban:v0.8.4" |
-     .services.marzban.container_name = "marzban" |
-     .services.marzban.restart = "always" |
-     .services.marzban.env_file = "./marzban/.env" |
-     .services.marzban.network_mode = "host" | 
-     .services.marzban.volumes[0] = "./marzban_lib:/var/lib/marzban" | 
-     .services.marzban.volumes[1] = "./marzban/xray_config.json:/code/xray_config.json" |
-     .services.marzban.volumes[2] = "./marzban/templates:/var/lib/marzban/templates" |
-     .services.caddy.volumes[2] = "./marzban_lib:/run/marzban"' -i /opt/xray-vps-setup/docker-compose.yml
-    mkdir -p marzban caddy
+    mkdir -p /opt/xray-vps-setup/xray-core
+    if [[ "$ARCH" == "amd64" ]]; then
+      wget -O /tmp/xray.zip https://github.com/XTLS/Xray-core/releases/download/v26.2.6/Xray-linux-64.zip
+    elif [[ "$ARCH" == "arm64" ]]; then
+      wget -O /tmp/xray.zip https://github.com/XTLS/Xray-core/releases/download/v26.2.6/Xray-linux-arm64-v8a.zip
+    fi
+    unzip -q /tmp/xray.zip -d /opt/xray-vps-setup/xray-core
+    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/compose-marzban | envsubst > ./docker-compose.yml
     wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/marzban | envsubst > ./marzban/.env
-    mkdir -p /opt/xray-vps-setup/marzban/templates/home
-    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/confluence_page | envsubst > ./marzban/templates/home/index.html
-    export CADDY_REVERSE="reverse_proxy * unix//run/marzban/marzban.socket"
-    wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > ./caddy/Caddyfile
+    wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/angie-marzban" | envsubst '$VLESS_DOMAIN $MARZBAN_PATH $MARZBAN_SUB_PATH' > ./angie.conf
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > ./marzban/xray_config.json
   else
-    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/compose | envsubst > ./docker-compose.yml
-    mkdir -p /opt/xray-vps-setup/caddy/templates
-    yq eval \
-    '.services.xray.image = "ghcr.io/xtls/xray-core:25.6.8" | 
-    .services.xray.container_name = "xray" |
-    .services.xray.user = "root" |
-    .services.xray.command = "run -c /etc/xray/config.json" |
-    .services.xray.restart = "always" | 
-    .services.xray.network_mode = "host" | 
-    .services.caddy.volumes[2] = "./caddy/templates:/srv" |
-    .services.xray.volumes[0] = "./xray:/etc/xray"' -i /opt/xray-vps-setup/docker-compose.yml
-    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/confluence_page | envsubst > ./caddy/templates/index.html
-    export CADDY_REVERSE="root * /srv
-    file_server"
-    mkdir -p xray caddy
+    mkdir -p /opt/xray-vps-setup/xray
+    wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/compose-xray | envsubst > ./docker-compose.yml
     wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray" | envsubst > ./xray/config.json
-    wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/caddy" | envsubst > ./caddy/Caddyfile
+    wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/angie" | envsubst '$VLESS_DOMAIN'  > ./angie.conf
   fi
 }
 
 xray_setup
 
 sshd_edit() {
-  grep -r Port /etc/ssh -l | xargs -n 1 sed -i -e "/Port /c\Port $SSH_PORT"
-  grep -r PasswordAuthentication /etc/ssh -l | xargs -n 1 sed -i -e "/PasswordAuthentication /c\PasswordAuthentication no"
-  grep -r PermitRootLogin /etc/ssh -l | xargs -n 1 sed -i -e "/PermitRootLogin /c\PermitRootLogin no"
+  wget -qO- https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/00-disable-password | envsubst > /etc/ssh/sshd_config.d/00-disable-password.conf
   systemctl daemon-reload
   systemctl restart ssh
 }
@@ -217,6 +194,7 @@ edit_iptables() {
 }
 
 if [[ ${configure_ssh_input,,} == "y" ]]; then
+  echo "New user for ssh: $SSH_USER, password for user: $SSH_USER_PASS. New port for SSH: $SSH_PORT."
   add_user
   sshd_edit
   edit_iptables
@@ -261,25 +239,20 @@ end_script() {
   fi
   
   if [[ "${marzban_input,,}" == "y" ]]; then
-    docker run -v /opt/xray-vps-setup/caddy/Caddyfile:/opt/xray-vps-setup/Caddyfile --rm caddy caddy fmt --overwrite /opt/xray-vps-setup/Caddyfile
     docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
 
     final_msg="Marzban panel location: https://$VLESS_DOMAIN/$MARZBAN_PATH
-User: xray_admin
+User: $MARZBAN_USER
 Password: $MARZBAN_PASS
     "
-    if [[ ${configure_ssh_input,,} == "y" ]]; then
-      echo "New user for ssh: $SSH_USER, password for user: $SSH_USER_PASS. New port for SSH: $SSH_PORT."
-    fi
   else
-    docker run -v /opt/xray-vps-setup/caddy/Caddyfile:/opt/xray-vps-setup/Caddyfile --rm caddy caddy fmt --overwrite /opt/xray-vps-setup/Caddyfile
     docker compose -f /opt/xray-vps-setup/docker-compose.yml up -d
 
     xray_config=$(wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray_outbound" | envsubst)
     singbox_config=$(wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/sing_box_outbound" | envsubst)
 
     final_msg="Clipboard string format:
-vless://$XRAY_UUID@$VLESS_DOMAIN:443?type=tcp&security=reality&pbk=$XRAY_PBK&fp=chrome&sni=$VLESS_DOMAIN&sid=$XRAY_SID&spx=%2F&flow=xtls-rprx-vision
+vless://$XRAY_UUID@$VLESS_DOMAIN:443?type=tcp&security=reality&pbk=$XRAY_PBK&fp=chrome&sni=$VLESS_DOMAIN&sid=&spx=%2F&flow=xtls-rprx-vision
 
 XRay outbound config:
 $xray_config
@@ -288,16 +261,15 @@ Sing-box outbound config:
 $singbox_config
 
 Plain data:
-PBK: $XRAY_PBK, SID: $XRAY_SID, UUID: $XRAY_UUID
+PBK: $XRAY_PBK, UUID: $XRAY_UUID
     "    
   fi
 
-  docker rmi ghcr.io/xtls/xray-core:latest caddy:latest
   clear
   echo "$final_msg"
   if [[ ${configure_ssh_input,,} == "y" ]]; then
-    echo "New user for ssh: $SSH_USER, password for user: $SSH_USER_PASS. New port for SSH: $SSH_PORT."
-  fi
+    echo "SSH user: $SSH_USER, SSH password: $SSH_USER_PASS, SSH port: $SSH_PORT"
+  fi 
 }
 
 end_script
