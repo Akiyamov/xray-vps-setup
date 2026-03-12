@@ -1,0 +1,32 @@
+services:
+  marzban-node:
+    image: gozargah/marzban-node:latest
+    container_name: marzban-node
+    restart: always
+    network_mode: host
+    environment:
+      XRAY_EXECUTABLE_PATH: "/tmp/xray-core/xray"
+      SERVICE_PORT: 62001
+      XRAY_API_PORT: 62002
+      SSL_CERT_FILE: "/tmp/ssl_cert.pem"
+      SSL_KEY_FILE: "/tmp/ssl_key.pem"
+      SSL_CLIENT_CERT_FILE: "/tmp/ssl_client_cert.pem"
+      SERVICE_PROTOCOL: "rest"
+    volumes:
+      - ./xray-core:/tmp/xray-core
+      - ./ssl_client_cert.pem:/tmp/ssl_client_cert.pem
+  angie:
+    image: docker.angie.software/angie:minimal
+    container_name: angie
+    restart: always
+    network_mode: host
+    volumes:
+      - angie-data:/var/lib/angie
+      - ./angie.conf:/etc/angie/angie.conf
+      - ./index.html:/tmp/index.html
+
+volumes:
+  angie-data:
+    driver: local
+    external: false
+    name: angie-data
