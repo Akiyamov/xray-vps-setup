@@ -28,7 +28,7 @@ services:
     user: root
     volumes:
       - ./xray:/etc/xray
-    command: ["xray", "-config", "/etc/xray/config.json"]
+    entrypoint: ["xray", "-config", "/etc/xray/config.json"]
 {% endif %}
 
 volumes:
