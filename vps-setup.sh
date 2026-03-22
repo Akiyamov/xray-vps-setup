@@ -527,7 +527,7 @@ Password: $MARZBAN_PASS
     singbox_config=$(wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/sing_box_outbound" | envsubst)
 
     final_msg="Clipboard string format:
-vless://$XRAY_UUID@$VLESS_DOMAIN:443?type=tcp&security=reality&pbk=$XRAY_PBK&fp=chrome&sni=$VLESS_DOMAIN&sid=&spx=%2F&flow=xtls-rprx-vision
+vless://$XRAY_UUID@$VLESS_DOMAIN:443?type=tcp&security=reality&pbk=$XRAY_PBK&fp=chrome&sni=$VLESS_DOMAIN&sid=&spx=%2F&flow=xtls-rprx-vision#Script
 
 XRay outbound config:
 $xray_config
