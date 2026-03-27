@@ -149,8 +149,8 @@ export SSH_USER=$(grep -E '^[a-z]{4,6}$' /usr/share/dict/words | shuf -n 1)
 export SSH_USER_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13; echo)
 export SSH_PORT=${input_ssh_port:-22}
 if [[ "$INSTALL_MODE" != "node" ]]; then
-  export XRAY_PIK=$(docker run --rm ghcr.io/xtls/xray-core x25519 | head -n1 | cut -d' ' -f 2)
-  export XRAY_PBK=$(docker run --rm ghcr.io/xtls/xray-core x25519 -i $XRAY_PIK | tail -2 | head -1 | cut -d' ' -f 2)
+  export XRAY_PIK=$(docker run --rm ghcr.io/xtls/xray-core:26.3.27 x25519 | head -n1 | cut -d' ' -f 2)
+  export XRAY_PBK=$(docker run --rm ghcr.io/xtls/xray-core:26.3.27 x25519 -i $XRAY_PIK | tail -2 | head -1 | cut -d' ' -f 3)
   export XRAY_UUID=$(docker run --rm ghcr.io/xtls/xray-core uuid)
 fi
 
