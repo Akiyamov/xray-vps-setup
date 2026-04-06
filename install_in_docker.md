@@ -162,6 +162,7 @@ volumes:
 ```  
 </details>
 Создаем конфиг angie `/opt/xray-vps-setup/angie.conf` и меняем его следующим образом.  
+
 <details><summary>Marzban</summary>
 
 ```conf
@@ -337,14 +338,10 @@ http {
 }
 ```
 
-</details>
-Настроив caddy требуется добавить страницу для маскировки. Для xray и marzban команды отличаются:  
-Xray  
+</details>  
 
-```bash
-wget -qO- https://raw.githubusercontent.com/Jolymmiles/confluence-marzban-home/main/index.html  | envsubst > /opt/xray-vps-setup/index.html
-```
-Marzban
+Настроив Angie требуется добавить страницу для маскировки:
+
 ```bash
 wget -qO- https://raw.githubusercontent.com/Jolymmiles/confluence-marzban-home/main/index.html  | envsubst > /opt/xray-vps-setup/index.html
 ```
