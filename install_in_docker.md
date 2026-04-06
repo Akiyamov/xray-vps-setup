@@ -155,7 +155,6 @@ services:
       - ./xray:/etc/xray
     entrypoint: ["xray", "-config", "/etc/xray/config.json"]
 
-
 volumes:
     angie-data:
         driver: local
