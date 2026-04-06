@@ -153,6 +153,8 @@ services:
     network_mode: host
     volumes:
       - ./xray:/etc/xray
+    entrypoint: ["xray", "-config", "/etc/xray/config.json"]
+
 
 volumes:
     angie-data:
