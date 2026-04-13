@@ -151,6 +151,7 @@ services:
     container_name: xray
     restart: always
     network_mode: host
+    user: root
     volumes:
       - ./xray:/etc/xray
     entrypoint: ["xray", "-config", "/etc/xray/config.json"]
