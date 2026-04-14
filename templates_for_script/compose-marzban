@@ -18,6 +18,7 @@ services:
       - ./marzban/xray_config.json:/code/xray_config.json
       - ./xray-core:/code/xray-core
       - ./marzban_lib:/var/lib/marzban
+      - ./marzban/templates:/var/lib/marzban/templates
 
 volumes:
   angie-data:

@@ -19,6 +19,7 @@ services:
       - ./marzban/xray_config.json:/code/xray_config.json
       - ./marzban/xray-core:/var/lib/marzban/xray-core
       - ./marzban_lib:/var/lib/marzban
+      - ./marzban/templates:/var/lib/marzban/templates
 {% else %}
   xray:
     image: ghcr.io/xtls/xray-core:latest
