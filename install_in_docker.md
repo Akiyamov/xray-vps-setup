@@ -181,22 +181,6 @@ http {
     log_format main '[$time_local] $proxy_protocol_addr "$http_referer" "$http_user_agent"';
     access_log /var/log/angie/access.log main;
 
-    map $http_upgrade $connection_upgrade {
-        default upgrade;
-        ""      close;
-    }
-
-    map $proxy_protocol_addr $proxy_forwarded_elem {
-        ~^[0-9.]+$        "for=$proxy_protocol_addr";
-        ~^[0-9A-Fa-f:.]+$ "for=\"[$proxy_protocol_addr]\"";
-        default           "for=unknown";
-    }
-
-    map $http_forwarded $proxy_add_forwarded {
-        "~^(,[ \\t]*)*([!#$%&'*+.^_`|~0-9A-Za-z-]+=([!#$%&'*+.^_`|~0-9A-Za-z-]+|\"([\\t \\x21\\x23-\\x5B\\x5D-\\x7E\\x80-\\xFF]|\\\\[\\t \\x21-\\x7E\\x80-\\xFF])*\"))?(;([!#$%&'*+.^_`|~0-9A-Za-z-]+=([!#$%&'*+.^_`|~0-9A-Za-z-]+|\"([\\t \\x21\\x23-\\x5B\\x5D-\\x7E\\x80-\\xFF]|\\\\[\\t \\x21-\\x7E\\x80-\\xFF])*\"))?)*([ \\t]*,([ \\t]*([!#$%&'*+.^_`|~0-9A-Za-z-]+=([!#$%&'*+.^_`|~0-9A-Za-z-]+|\"([\\t \\x21\\x23-\\x5B\\x5D-\\x7E\\x80-\\xFF]|\\\\[\\t \\x21-\\x7E\\x80-\\xFF])*\"))?(;([!#$%&'*+.^_`|~0-9A-Za-z-]+=([!#$%&'*+.^_`|~0-9A-Za-z-]+|\"([\\t \\x21\\x23-\\x5B\\x5D-\\x7E\\x80-\\xFF]|\\\\[\\t \\x21-\\x7E\\x80-\\xFF])*\"))?)*)?)*$" "$http_forwarded, $proxy_forwarded_elem";
-        default "$proxy_forwarded_elem";
-    }
-
     server {
         listen 80;
         listen [::]:80;
@@ -272,22 +256,6 @@ events {
 http {
     log_format main '[$time_local] $proxy_protocol_addr "$http_referer" "$http_user_agent"';
     access_log /var/log/angie/access.log main;
-
-    map $http_upgrade $connection_upgrade {
-        default upgrade;
-        ""      close;
-    }
-
-    map $proxy_protocol_addr $proxy_forwarded_elem {
-        ~^[0-9.]+$        "for=$proxy_protocol_addr";
-        ~^[0-9A-Fa-f:.]+$ "for=\"[$proxy_protocol_addr]\"";
-        default           "for=unknown";
-    }
-
-    map $http_forwarded $proxy_add_forwarded {
-        "~^(,[ \\t]*)*([!#$%&'*+.^_`|~0-9A-Za-z-]+=([!#$%&'*+.^_`|~0-9A-Za-z-]+|\"([\\t \\x21\\x23-\\x5B\\x5D-\\x7E\\x80-\\xFF]|\\\\[\\t \\x21-\\x7E\\x80-\\xFF])*\"))?(;([!#$%&'*+.^_`|~0-9A-Za-z-]+=([!#$%&'*+.^_`|~0-9A-Za-z-]+|\"([\\t \\x21\\x23-\\x5B\\x5D-\\x7E\\x80-\\xFF]|\\\\[\\t \\x21-\\x7E\\x80-\\xFF])*\"))?)*([ \\t]*,([ \\t]*([!#$%&'*+.^_`|~0-9A-Za-z-]+=([!#$%&'*+.^_`|~0-9A-Za-z-]+|\"([\\t \\x21\\x23-\\x5B\\x5D-\\x7E\\x80-\\xFF]|\\\\[\\t \\x21-\\x7E\\x80-\\xFF])*\"))?(;([!#$%&'*+.^_`|~0-9A-Za-z-]+=([!#$%&'*+.^_`|~0-9A-Za-z-]+|\"([\\t \\x21\\x23-\\x5B\\x5D-\\x7E\\x80-\\xFF]|\\\\[\\t \\x21-\\x7E\\x80-\\xFF])*\"))?)*)?)*$" "$http_forwarded, $proxy_forwarded_elem";
-        default "$proxy_forwarded_elem";
-    }
 
     server {
         listen 80;
