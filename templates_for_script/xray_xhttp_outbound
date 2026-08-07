@@ -1,0 +1,35 @@
+{
+	  "tag": "default",
+	  "name": "vless-xhttp",
+      "protocol": "vless",
+      "settings": {
+        "address": "$VLESS_DOMAIN",
+        "port": 443,
+        "id": "$XRAY_UUID",
+        "encryption": "none"
+      },
+      "streamSettings": {
+        "network": "xhttp",
+		"security": "reality",
+    	"realitySettings": {
+    	  "serverName": "$VLESS_DOMAIN",
+    	  "fingerprint": "chrome",
+    	  "publicKey": "$XRAY_PBK",
+    	  "shortId": "",
+    	  "spiderX": ""
+    	},
+        "#downloadSettings": {
+            "address": "$VLESS_DOMAIN",
+            "port": 443,
+            "network": "xhttp",
+            "xhttpSettings": {
+              "path": "/$XRAY_XHTTP_PATH" 
+          }
+        },
+        "xhttpSettings": {
+	 	  "host": "$VLESS_DOMAIN",
+          "path": "$XRAY_XHTTP_PATH",
+          "mode": "packet-up"
+        }
+     }
+}

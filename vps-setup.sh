@@ -152,6 +152,7 @@ if [[ "$INSTALL_MODE" != "node" ]]; then
   export XRAY_PIK=$(docker run --rm ghcr.io/xtls/xray-core:26.3.27 x25519 | head -n1 | cut -d' ' -f 2)
   export XRAY_PBK=$(docker run --rm ghcr.io/xtls/xray-core:26.3.27 x25519 -i $XRAY_PIK | tail -2 | head -1 | cut -d' ' -f 3)
   export XRAY_UUID=$(docker run --rm ghcr.io/xtls/xray-core uuid)
+  export XRAY_XHTTP_PATH=$(openssl rand -hex 8)
 fi
 
 # Install marzban
@@ -524,13 +525,19 @@ Password: $MARZBAN_PASS
     "
   else
     xray_config=$(wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray_outbound" | envsubst)
+    xray_config_xhttp=$(wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/xray_outbound_xhttp" | envsubst)
     singbox_config=$(wget -qO- "https://raw.githubusercontent.com/$GIT_REPO/refs/heads/$GIT_BRANCH/templates_for_script/sing_box_outbound" | envsubst)
 
     final_msg="Clipboard string format:
-vless://$XRAY_UUID@$VLESS_DOMAIN:443?type=tcp&security=reality&pbk=$XRAY_PBK&fp=chrome&sni=$VLESS_DOMAIN&sid=&spx=%2F&flow=xtls-rprx-vision#Script
+Vision: vless://$XRAY_UUID@$VLESS_DOMAIN:443?type=tcp&security=reality&pbk=$XRAY_PBK&fp=chrome&sni=$VLESS_DOMAIN&sid=&spx=%2F&flow=xtls-rprx-vision#Script
+XHTTP: vless://$XRAY_UUID@$VLESS_DOMAIN:443?encryption=none&fp=chrome&host=$VLESS_DOMAIN&mode=packet-up&path=%$XRAY_XHTTP_PATH&pbk=$XRAY_PBK&security=reality&sni=$VLESS_DOMAIN&spx=%2F&type=xhttp#Script
 
-XRay outbound config:
+
+XRay Vision outbound:
 $xray_config
+
+XRay XHTTP outbound config:
+$xray_config_xhttp
 
 Sing-box outbound config:
 $singbox_config
