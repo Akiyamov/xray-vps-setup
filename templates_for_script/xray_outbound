@@ -1,5 +1,6 @@
 {
   "tag": "default",
+  "name": "vless-xtls-vision"
   "protocol": "vless",
   "settings": {
     "vnext": [

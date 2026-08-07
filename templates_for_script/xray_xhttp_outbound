@@ -16,7 +16,7 @@
     	  "fingerprint": "chrome",
     	  "publicKey": "$XRAY_PBK",
     	  "shortId": "",
-    	  "spiderX": "/$XRAY_SPIDERX"
+    	  "spiderX": ""
     	},
         "#downloadSettings": {
             "address": "$VLESS_DOMAIN",
