@@ -16,10 +16,16 @@
             "flow": "xtls-rprx-vision"
           }
         ],
-        "decryption": "none"
+        "decryption": "none",
+		"fallbacks": [
+			{
+				"dest": "@xhttp.sock",
+				"xver": 2
+			}
+		]
       },
       "streamSettings": {
-        "network": "tcp",
+        "network": "raw",
         "security": "reality",
         "realitySettings": {
           "xver": 1,
@@ -38,10 +44,43 @@
         "enabled": true,
         "destOverride": [
           "http",
-          "tls"
+          "tls",
+		  "quic"
         ],
         "routeOnly": true
       }
+    },
+    {
+      "tag": "VLESS XHTTP Reality",
+      "listen": "@xhttp.sock",
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "$XRAY_UUID"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "xhttp",
+        "xhttpSettings": {
+          "mode": "auto",
+          "path": "/$XRAY_XHTTP_PATH"
+        },
+		"sockopt": {
+          "acceptProxyProtocol": true
+        }
+      },
+      "sniffing": {
+         "enabled": true,
+         "destOverride": [
+             "http",
+             "tls",
+             "quic"
+         ],
+         "routeOnly": true
+     }
     }
   ],
   "outbounds": [
@@ -62,14 +101,18 @@
       {
         "protocol": "bittorrent",
         "outboundTag": "block"
-      }
+      },
+	  {
+	  	"ip": [ "geoip:private" ],
+		 "outboundTag": "block"
+	  }
     ],
     "domainStrategy": "IPIfNonMatch"
   },
   "dns": {
     "servers": [
-      "1.1.1.1",
-      "8.8.8.8"
+      "https+local://1.1.1.1/dns-query",
+      "https+local://8.8.8.8/dns-query"
     ],
     "queryStrategy": "UseIPv4",
     "disableFallback": false,

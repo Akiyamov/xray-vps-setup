@@ -86,6 +86,8 @@ sudo usermod -aG docker $USER
 Оба значения для нас важны, Public key = PBK, Password = PIK.  
 - __XRAY_SID__: ``
 Short id, а не генерируем его. Рудимент, который не особо нужен.    
+- __XRAY_XHTTP_PATH__: `openssl rand -hex 8`
+URL префикс для транспорта xhttp
 
 Следующие данные нужны только если вы будете устанавливать панель Marzban.  
 - __MARZBAN_USER__: `grep -E '^[a-z]{4,6}$' /usr/share/dict/words | shuf -n 1`  
