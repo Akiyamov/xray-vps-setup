@@ -1,5 +1,6 @@
 {
-	  "tag": "xhttp",
+	  "tag": "default",
+	  "name": "vless-xhttp",
       "protocol": "vless",
       "settings": {
         "address": "$VLESS_DOMAIN",
@@ -14,21 +15,21 @@
     	  "serverName": "$VLESS_DOMAIN",
     	  "fingerprint": "chrome",
     	  "publicKey": "$XRAY_PBK",
-    	  "shortId": "$XRAY_SID",
-    	  "spiderX": ""
+    	  "shortId": "",
+    	  "spiderX": "/$XRAY_SPIDERX"
     	},
-        "xhttpSettings": {
-	 	  "host": "$VLESS_DOMAIN",
-          "path": "$XRAY_XHTTP_PATH",
-          "mode": "packet-up",
-          },
-          "#downloadSettings": {
-            "address": "example.com",
+        "#downloadSettings": {
+            "address": "$VLESS_DOMAIN",
             "port": 443,
             "network": "xhttp",
             "xhttpSettings": {
-              "path": "$XRAY_XHTTP_PATH" 
-            }
+              "path": "/$XRAY_XHTTP_PATH" 
           }
+        },
+        "xhttpSettings": {
+	 	  "host": "$VLESS_DOMAIN",
+          "path": "$XRAY_XHTTP_PATH",
+          "mode": "packet-up"
+        }
      }
 }
